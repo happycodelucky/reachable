@@ -174,23 +174,34 @@ changes don't trigger emissions on `reachable`.
 
 ## Build and test
 
+[`mise`](https://mise.jdx.dev) pins JDK, Gradle, Python, `xcodegen`, `gh`,
+and the Swift tooling. Bootstrap once per machine:
+
 ```bash
-./gradlew :reachable:check                                   # ktlint + all unit tests
-./gradlew :reachable:linkDebugFrameworkIosArm64              # iOS device slice
-./gradlew :reachable:linkDebugFrameworkIosSimulatorArm64     # Apple Silicon simulator
-./gradlew :reachable:linkDebugFrameworkMacosArm64            # macOS desktop slice
-./gradlew :reachable:assembleReachableXCFramework            # SPM-consumable artifact
-./gradlew :reachable:assemble                                # Android AAR
-./gradlew :androidApp:assembleDebug                          # sample Android app
+brew install mise
+mise trust        # accept mise.toml in this checkout
+mise install      # provision every tool at the pinned version
 ```
 
-`./gradlew :reachable:check` runs ktlint, `iosSimulatorArm64Test`,
-`macosArm64Test`, and `testAndroidHostTest` (Robolectric-free pure
-mappers).
+Then the task surface:
 
-The iOS and macOS sample apps build via `xcodebuild` — see
-[`iOSApp/README.md`](./iOSApp/README.md) and
-[`macOSApp/README.md`](./macOSApp/README.md) for the iteration loop.
+```bash
+mise run check          # ktlint + all unit tests (iOS sim, macOS, Android host)
+mise run build:ios      # iOS device + simulator debug frameworks
+mise run build:macos    # macOS desktop debug framework
+mise run build          # release Reachable.xcframework (SPM-consumable)
+mise run build:android  # Android AAR
+mise run open:ios       # spm:dev + xcodegen + open iOSApp in Xcode
+mise run open:macos     # spm:dev + xcodegen + open macOSApp in Xcode
+```
+
+Each task is a thin wrapper over `./gradlew` (or `xcodegen` for the
+`open:*` tasks); see [`mise.toml`](./mise.toml) for the exact mapping, or
+run `mise tasks` to list everything. Raw `./gradlew` invocations still
+work — mise just ensures everyone (and CI) runs the same versions.
+
+For the iOS and macOS sample apps see [`iOSApp/README.md`](./iOSApp/README.md)
+and [`macOSApp/README.md`](./macOSApp/README.md).
 
 ---
 
@@ -214,6 +225,8 @@ Highlights:
   [Compose binding](docs/recipes/compose-binding.md),
   [React to changes](docs/recipes/react-to-changes.md),
   [Captive portals](docs/recipes/captive-portal.md).
+- [Contributing](docs/contributing.md): development environment,
+  reporting bugs, PR expectations.
 
 ---
 
