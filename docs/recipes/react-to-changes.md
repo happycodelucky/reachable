@@ -1,12 +1,12 @@
 # React to changes
 
-Two common patterns for "do something when reachability changes" outside
-of UI bindings: trigger a one-time effect on the next recovery, or stream
-transitions to a side channel (logging, analytics, retries).
+Patterns for reacting to reachability changes outside UI bindings: triggering
+a one-time effect on the next recovery, streaming transitions to a side
+channel, throttling reactions on flaky networks.
 
 ## Trigger an effect on the next recovery
 
-Use `Flow.first { … }` to suspend until the predicate matches:
+`Flow.first { … }` suspends until the predicate matches:
 
 === "Kotlin"
 
@@ -15,7 +15,6 @@ Use `Flow.first { … }` to suspend until the predicate matches:
         reachability.status.first { it.reachable }
     }
 
-    // …somewhere
     coroutineScope.launch {
         waitForOnline(reachability)
         retryFailedUploads()
@@ -37,17 +36,16 @@ Use `Flow.first { … }` to suspend until the predicate matches:
     }
     ```
 
-If the device is already online when you call this, the function returns
-immediately because StateFlow emits the current value to a new collector.
-If it's offline, the call suspends until the next emission with
-`reachable = true`.
+If the device is already online, the function returns immediately because
+StateFlow emits the current value to a new collector. If offline, the call
+suspends until the next emission with `reachable = true`.
 
 ## Distinct-only transitions
 
-`StateFlow` already conflates identical consecutive values, so naive
-`collect { }` only sees real changes. If you want to react only when the
-**reachable** axis flips (ignoring transport / metering churn), use the
-single-axis shortcut [`Reachability.reachable`](../concepts/api-design.md#single-axis-shortcuts):
+`StateFlow` already conflates identical consecutive values, so `collect { }`
+only sees real changes. To react only when the `reachable` axis flips,
+ignoring transport and metering churn, use the
+[single-axis shortcut](../concepts/api-design.md#single-axis-shortcuts):
 
 ```kotlin
 reachability.reachable.collect { isReachable ->
@@ -57,12 +55,12 @@ reachability.reachable.collect { isReachable ->
 ```
 
 The shortcut is a dedicated `MutableStateFlow` that the library updates
-synchronously alongside `status` — it conflates identical consecutive
-values and a late-joining collector immediately sees the current value.
-There's nothing to gain from re-implementing it manually with
-`.map { … }.distinctUntilChanged()` on top of `status`.
+synchronously alongside `status`. It conflates identical consecutive values
+and a late-joining collector immediately sees the current value. Don't
+re-implement it manually with `.map { … }.distinctUntilChanged()` on top of
+`status`.
 
-The same pattern applies for the Low Data Mode axis:
+The same pattern applies to Low Data Mode:
 
 ```kotlin
 reachability.lowDataMode.collect { isOn ->
@@ -70,7 +68,7 @@ reachability.lowDataMode.collect { isOn ->
 }
 ```
 
-Note `lowDataMode` is **always** `false` on Android — see
+`lowDataMode` is always `false` on Android. See
 [Concepts → API design](../concepts/api-design.md#meteringconstrained-is-apple-only).
 
 ## Detect transport changes for analytics
@@ -86,9 +84,8 @@ reachability.status
     .launchIn(applicationScope)
 ```
 
-`drop(1)` ensures you don't fire an event for the initial reading on app
-start — otherwise every cold start would log a spurious "transport
-changed" event.
+`drop(1)` skips the initial reading on app start; otherwise every cold
+start would log a spurious "transport changed" event.
 
 ## Cancel a long-running task on going offline
 
@@ -104,7 +101,7 @@ reachability.status
     }
 ```
 
-Or, more idiomatically with structured concurrency:
+With structured concurrency:
 
 ```kotlin
 coroutineScope {
@@ -118,8 +115,8 @@ coroutineScope {
 
 ## Throttling reactions
 
-If you're sending an analytics event or showing a toast on each transition,
-debounce them — flaky networks can produce dozens of state changes a second:
+Flaky networks can produce dozens of state changes a second. For analytics
+events or toasts, debounce:
 
 ```kotlin
 reachability.status
@@ -129,5 +126,5 @@ reachability.status
     .collect { isReachable -> showToast(if (isReachable) "Online" else "Offline") }
 ```
 
-`debounce` waits for the value to be stable for 500ms before emitting, so
-a rapid offline→online→offline burst collapses to a single emission.
+`debounce` waits for the value to stay stable for 500ms before emitting,
+so a rapid offline → online → offline burst collapses to one emission.

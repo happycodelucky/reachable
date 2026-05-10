@@ -1,11 +1,6 @@
 # API design
 
-Reachable's public surface is two top-level factories, one interface, one
-data class, two enums, and an `AutoCloseable.close()` method. This page
-explains the shape: why each piece is what it is, what we deliberately left
-off, and what tradeoffs the choices imply for Kotlin and Swift consumers.
-
-## The whole surface, in one block
+The whole public surface:
 
 ```kotlin
 package com.happycodelucky.reachable
@@ -43,13 +38,10 @@ public fun Reachability(): Reachability
 public fun Reachability(context: Context): Reachability
 ```
 
-That's the whole thing. Everything else — the platform observers, the
-shared base class, the pure mapping helpers — is `internal`.
+Everything else — platform observers, the shared base class, the mapping
+helpers — is `internal`.
 
 ## One observable for both questions
-
-The user's two questions ("what's the current state?" and "tell me when it
-changes") collapse into one primitive: `StateFlow<ReachabilityStatus>`.
 
 | Need                  | Call                              |
 |-----------------------|-----------------------------------|
@@ -58,93 +50,76 @@ changes") collapse into one primitive: `StateFlow<ReachabilityStatus>`.
 | One-shot suspend      | `reachability.status.first()`     |
 | Swift `AsyncSequence` | `for await s in reachability.status` |
 
-Adding a separate `suspend fun current(): ReachabilityStatus` would bloat
-the API and force consumers to choose between two equivalent calls. We
-don't.
+A separate `suspend fun current()` would force consumers to choose between
+two equivalent calls, so there isn't one.
 
 ### Single-axis shortcuts
 
-The two most-asked questions — "is it online?" and "is Low Data Mode on?" —
-get dedicated properties so callers never have to spell
-`status.value.reachable` or pull `Metering` into a single-purpose call site:
-
 | Need                          | Call                              |
 |-------------------------------|-----------------------------------|
-| Sync "is it online?"          | `reachability.isReachable`        |
-| Sync "is Low Data Mode on?"   | `reachability.isLowDataMode`      |
-| Reactive online/offline only  | `reachability.reachable.collect { }` |
-| Reactive Low-Data-Mode only   | `reachability.lowDataMode.collect { }` |
+| Sync online check             | `reachability.isReachable`        |
+| Sync Low Data Mode check      | `reachability.isLowDataMode`      |
+| Reactive online/offline       | `reachability.reachable.collect { }` |
+| Reactive Low Data Mode        | `reachability.lowDataMode.collect { }` |
 
-The reactive variants are dedicated `MutableStateFlow`s that the shared base
-class updates synchronously alongside `status` from inside `emit()`. They
-conflate identical consecutive values (transport / metering churn that
-doesn't flip the relevant axis is dropped) and a late-joining collector
-immediately sees the current value.
+The reactive variants are dedicated `MutableStateFlow`s that the shared
+base writes synchronously alongside `status` from inside `emit()`. Identical
+consecutive values are conflated, so transport- or metering-only changes
+don't trigger emissions on `reachable`.
 
-`isLowDataMode` and `lowDataMode` are **always** `false` on Android, since
-Android has no equivalent of Apple's Low Data Mode signal. See
+`isLowDataMode` and `lowDataMode` are always `false` on Android — see
 [`Metering.Constrained` is Apple-only](#meteringconstrained-is-apple-only).
 
 ## Composition over a sealed hierarchy
 
-`ReachabilityStatus` is a `data class` with three independent fields. It's
-not a `sealed interface ReachabilityStatus { Online; Offline; Constrained;
-… }`. The reasoning:
+`ReachabilityStatus` is a `data class`, not a sealed interface with cases
+like `Online`, `Offline`, `Constrained`, etc.
 
-- The three axes (reachable / transport / metering) are **orthogonal**.
-  You can be online over cellular and metered simultaneously. A sealed
-  hierarchy would either cross-product the cases (5 transports × 3
-  meterings × reachable = 30 cases) or hide axes inside one case's payload,
-  losing the exhaustiveness benefit.
-- Enum-per-axis gives Swift consumers an exhaustive `switch` on each axis
-  individually via SKIE — `switch status.transport { case .wifi: …; case
-  .cellular: …; … }` — without forcing pattern matching on the whole status.
-- `data class` gives free `equals` / `hashCode` / `copy()` / destructuring,
-  none of which a sealed hierarchy provides automatically.
+The three axes — reachable, transport, metering — are orthogonal. A device
+can be online over cellular and metered at the same time. A sealed
+hierarchy would either cross-product the cases (5 transports × 3 meterings
+× reachable = 30 cases) or stuff axes inside one case's payload, defeating
+exhaustiveness.
 
-The cost is that the language can't catch "you forgot to check `reachable`
-before reading `transport`" — but that's a domain rule, not a type rule, and
-mapping enforces `transport == Transport.None` whenever `reachable` is
-`false`.
+Enum-per-axis still gives Swift consumers exhaustive `switch` over each axis
+individually via SKIE: `switch status.transport { case .wifi: …; case
+.cellular: …; … }`. `data class` brings `equals`, `hashCode`, `copy()`, and
+destructuring for free.
+
+The cost: the type system can't catch "you forgot to check `reachable`
+before reading `transport`". The mapping enforces `transport ==
+Transport.None` whenever `reachable` is `false`, so this is rarely a real
+hazard.
 
 ## Metering.Constrained is Apple-only
 
-`Metering` has three cases — `Unmetered`, `Metered`, `Constrained` — but
-**Android never emits `Constrained`**. Apple's Network framework reports
-"Low Data Mode active" via `nw_path_is_constrained(path)`; Android's
-connectivity model has `NET_CAPABILITY_NOT_METERED` and
-`NET_CAPABILITY_TEMPORARILY_NOT_METERED` but no first-class equivalent of
-Low Data Mode.
+Apple's Network framework reports Low Data Mode via
+`nw_path_is_constrained(path)`. Android has `NET_CAPABILITY_NOT_METERED`
+and `NET_CAPABILITY_TEMPORARILY_NOT_METERED` but no equivalent.
 
-The choice was either:
+Two options were available:
 
-1. **Lowest common denominator** — drop `Constrained` from the enum, lose
-   the Apple signal entirely, force consumers who care to write platform-
-   specific code anyway.
-2. **Best of both** — include `Constrained` as an Apple-only case; Android
-   consumers see it as "never happens" and can ignore it; Apple consumers
-   get the richer signal for free.
+1. Drop `Constrained` from the enum and lose the Apple signal.
+2. Keep `Constrained` as Apple-only — Android consumers see it as "never
+   happens", Apple consumers get the richer signal.
 
-We picked (2). The cost: a Kotlin `when` over `metering` on a shared-code
-path needs an `else -> /* Constrained: never on Android */` arm even if you
-only care about Android, or you elide the `Constrained` case from your
-Android-only branches and trust the documentation.
+Reachable does (2). The cost is a `when` over `metering` that needs an
+`else` arm even on Android-only paths, or a deliberate elision of
+`Constrained` from Android branches with documentation as the contract.
 
 ## Asymmetric factories
 
-`Reachability()` (no args) on Apple, `Reachability(context)` on Android. The
-factories are deliberately **not** wrapped in an `expect class
-ReachabilityFactory` — that pattern just moves the asymmetry one layer
-down (the factory still needs the Context from somewhere).
+`Reachability()` on Apple, `Reachability(context)` on Android. There's no
+`expect class ReachabilityFactory` to paper over the asymmetry — wrapping
+it that way only moves the `Context` requirement one layer down.
 
-Per [CLAUDE.md §5](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md):
-the library uses constructor injection. The consumer's app graph (Koin,
-Hilt, hand-wired) calls the platform-specific factory at the entrypoint and
-binds the resulting `Reachability` interface for shared / multiplatform code
-to depend on.
+[CLAUDE.md §5](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
+calls for constructor injection. The consumer's DI container (Koin, Hilt,
+hand-wired) calls the platform-specific factory at the entrypoint and
+binds the `Reachability` interface for shared code:
 
 ```kotlin
-// Common shared-module code — depends only on the interface.
+// Common shared-module code: depends on the interface only.
 class ConnectivityModel(private val reachability: Reachability)
 
 // Android entrypoint
@@ -158,26 +133,23 @@ let model = ConnectivityModel(reachability: r)
 
 ## No `kotlin.Result<T>`, no `Pair`/`Triple` at the boundary
 
-Per [CLAUDE.md §8](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md):
-the public API never returns `kotlin.Result<T>` and never uses `Pair` /
-`Triple` in public signatures. Both render as opaque wrappers in Swift
-(`KotlinResult`, `KotlinPair`) with no exhaustive `switch` and no value-type
-semantics. We use named `data class`es and project-defined `sealed
-interface`s for outcomes instead.
+The public API never returns `kotlin.Result<T>` and never uses `Pair` or
+`Triple`. Both render as opaque wrappers in Swift (`KotlinResult`,
+`KotlinPair`) with no exhaustive `switch` and no value-type semantics.
+Named `data class`es and project-defined `sealed interface`s are the
+substitute. Reachable's current surface needs neither.
 
-Reachable's surface is small enough that no outcome type is needed yet.
+(See [CLAUDE.md §8](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
+for the rule.)
 
 ## `AutoCloseable.close()`
 
-Reachable owns a platform observer (the `nw_path_monitor` or the
-`NetworkCallback`) and a `SupervisorJob`-rooted coroutine scope. Both have
-to be torn down explicitly when the owning scope exits — there's no
-finaliser path that's reliable across both Apple and Android.
+Reachable owns a platform observer (`nw_path_monitor` or `NetworkCallback`)
+and a `SupervisorJob`-rooted coroutine scope. Neither has a reliable
+finaliser path on both Apple and Android, so cleanup is explicit.
 
 `AutoCloseable.close()` is the universal idiom across Kotlin, Java, and
-Swift, and SKIE renders it as `close()` in Swift without any special
-mangling. The implementation is idempotent and synchronous; multiple `close()`
-calls are no-ops.
+Swift; SKIE renders it as `close()` without any name mangling. The
+implementation is idempotent and synchronous.
 
-See [Concepts → Lifecycle](lifecycle.md) for when to construct and when to
-close.
+See [Concepts → Lifecycle](lifecycle.md) for when to construct and close.

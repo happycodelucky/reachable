@@ -1,13 +1,10 @@
 # Compose binding
 
-Bind `reachability.status` to a `@Composable` via
-`collectAsStateWithLifecycle()` (from
-`androidx.lifecycle:lifecycle-runtime-compose`). The lifecycle-aware
-variant auto-pauses Flow collection when the activity goes to STOPPED,
-which prevents the underlying `NetworkCallback` from doing useless work in
-the background.
-
-## The pattern
+Use `collectAsStateWithLifecycle()` (from
+`androidx.lifecycle:lifecycle-runtime-compose`) to bind
+`reachability.status` to a `@Composable`. The lifecycle-aware variant
+auto-pauses Flow collection when the activity goes to STOPPED, so the
+underlying `NetworkCallback` doesn't keep working in the background.
 
 ```kotlin
 @Composable
@@ -27,13 +24,13 @@ fun ConnectivityBanner(reachability: Reachability) {
 }
 ```
 
-Call it from your top-level scaffold:
+From a top-level scaffold:
 
 ```kotlin
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Application-scoped Reachability — survives configuration changes.
+        // Application-scoped Reachability survives configuration changes.
         val reachability = (application as ReachableApplication).reachability
         setContent {
             MaterialTheme {
@@ -55,8 +52,7 @@ class ReachableApplication : Application() {
 
 For anything beyond a banner, lift the subscription into an
 `androidx.lifecycle.ViewModel`. This decouples the UI from the platform
-lifecycle and gives you somewhere to put `viewModelScope.launch { … }` for
-side effects:
+lifecycle and gives you `viewModelScope.launch { … }` for side effects:
 
 ```kotlin
 class ConnectivityViewModel(reachability: Reachability) : ViewModel() {
@@ -76,27 +72,24 @@ fun ConnectivityBanner(viewModel: ConnectivityViewModel = viewModel()) {
 }
 ```
 
-`SharingStarted.WhileSubscribed(5_000)` keeps the upstream collection alive
-for 5 seconds after the last subscriber unsubscribes — useful so a quick
-config change doesn't drop and re-establish the subscription.
+`SharingStarted.WhileSubscribed(5_000)` keeps the upstream collection
+alive for five seconds after the last subscriber unsubscribes, so a quick
+configuration change doesn't drop and re-establish the subscription.
 
 ## What can go wrong
 
-- **Constructing `Reachability` inside `@Composable`** without `remember`
-  re-creates the platform observer on every recomposition. Either hoist
-  into the Application class (as above) or wrap in
+- **Constructing `Reachability` inside `@Composable` without `remember`**
+  re-creates the platform observer on every recomposition. Hoist into the
+  Application class (as above) or wrap in
   `remember(context) { Reachability(context) }` if the lifetime really is
   composable-scoped.
-
 - **Calling `collectAsState()` instead of `collectAsStateWithLifecycle()`**
-  keeps collecting in the background even when the activity is STOPPED.
-  The library's StateFlow is cheap to keep alive, but it's still wasteful.
-  Prefer the lifecycle-aware variant in any production app.
-
-- **Branching on `metering` and forgetting `Constrained`.** Same trap as
-  Swift — Kotlin's `when` is exhaustive on enums. The compiler will catch
-  it. Treat `Constrained` as never-emitted on Android (so you can collapse
-  it into the Metered branch).
+  keeps collecting even when the activity is STOPPED. The library's
+  StateFlow is cheap to keep alive, but it's still wasteful. Prefer the
+  lifecycle-aware variant.
+- **Branching on `metering` and forgetting `Constrained`.** Kotlin's `when`
+  is exhaustive on enums. Treat `Constrained` as never-emitted on Android
+  and collapse it into the `Metered` branch:
 
   ```kotlin
   when (status.metering) {
@@ -108,7 +101,7 @@ config change doesn't drop and re-establish the subscription.
 
 ## Synchronous read
 
-For a one-off, no recomposition involved:
+For a one-off without recomposition:
 
 ```kotlin
 val now: ReachabilityStatus = reachability.status.value
@@ -117,7 +110,7 @@ if (now.reachable) {
 }
 ```
 
-For a one-shot suspending read (e.g. in `viewModelScope.launch`):
+For a one-shot suspending read in `viewModelScope.launch`:
 
 ```kotlin
 viewModelScope.launch {

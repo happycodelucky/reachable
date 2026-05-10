@@ -1,11 +1,6 @@
 # Getting started
 
-Three steps from zero to a live `Reachability` instance bound to a UI.
-
 ## 1. Add the dependency
-
-See [Installation](installation.md) for the full Maven / SPM details. The
-short version:
 
 === "Android (Gradle)"
 
@@ -18,52 +13,41 @@ short version:
 
 === "iOS / macOS (Swift Package Manager)"
 
-    Add `https://github.com/happycodelucky/reachable.git` as an SPM
-    dependency in Xcode and pin to the latest tag:
-
     ```
     .package(url: "https://github.com/happycodelucky/reachable.git", from: "0.1.0")
     ```
 
+Full setup including GitHub Packages auth: [Installation](installation.md).
+
 ## 2. Construct one Reachability per process
 
-The factory is asymmetric on purpose: Android needs a `Context`, Apple
-doesn't. Construct at the platform entrypoint and inject the `Reachability`
-interface across shared code (CLAUDE.md §5: library uses constructor injection).
+The factory takes a `Context` on Android and no arguments on Apple. Construct
+at the platform entrypoint, then inject the `Reachability` interface into
+shared code.
 
 === "Android"
 
     ```kotlin
     // Application.onCreate
     val reachability: Reachability = Reachability(applicationContext)
-
-    // ...later, somewhere your DI graph wires together…
     val viewModel = ConnectivityModel(reachability)
     ```
 
 === "iOS"
 
     ```swift
-    // Wherever your composition root lives — App.init or a SceneDelegate.
+    // App.init or your composition root
     let reachability: any Reachability = Reachability()
-
-    // Inject across SwiftUI views via @Environment, an ObservableObject, or
-    // your DI container of choice.
     let model = ConnectivityModel(reachability: reachability)
     ```
 
 === "macOS"
 
     ```swift
-    // Identical to iOS — same `appleMain` source set in :reachable.
     let reachability: any Reachability = Reachability()
     ```
 
 ## 3. React to status
-
-`reachability.status` is a `StateFlow<ReachabilityStatus>` (Swift consumers
-see it as an `AsyncSequence`). It always exposes a current value and emits
-every change.
 
 === "Compose"
 
@@ -99,25 +83,21 @@ every change.
 
 ### Single-axis shortcuts
 
-For the two most-asked questions there are dedicated shortcut properties so
-you don't have to spell `status.value.reachable` or pull in `Metering`:
+`isReachable` and `isLowDataMode` read directly off the latest status without
+unpacking it. The matching `reachable` and `lowDataMode` StateFlows give you
+the same values as a Flow, conflated so you only see real transitions.
 
 ```kotlin
 if (reachability.isReachable) { /* online */ }
 if (reachability.isLowDataMode) { /* defer large transfers */ }
 
-// Reactive variants:
 reachability.reachable.collect { online -> /* … */ }
 reachability.lowDataMode.collect { isOn -> /* … */ }
 ```
 
-Both reactive flows share their upstream observer with `status` and conflate
-identical consecutive values — see
-[Concepts → API design](concepts/api-design.md#single-axis-shortcuts).
+See [Concepts → API design](concepts/api-design.md#single-axis-shortcuts).
 
 ### Branching on the full status
-
-That's the full surface. Three additional axes you might branch on:
 
 ```kotlin
 when (status.transport) {
@@ -137,6 +117,6 @@ when (status.metering) {
 
 ## Next steps
 
-- **[Concepts → API design](concepts/api-design.md)** — what shapes the public type, why `Metering.Constrained` is Apple-only, why we don't expose a `Result`.
-- **[Concepts → Lifecycle](concepts/lifecycle.md)** — when to construct, when to close, and what threads things fire on.
-- **[Recipes](recipes/swiftui-binding.md)** — copy-pasteable patterns for the UI bindings shown above, plus retry / captive-portal / one-shot patterns.
+- [Concepts → API design](concepts/api-design.md): the public type, the asymmetric factories, why there's no `Result`.
+- [Concepts → Lifecycle](concepts/lifecycle.md): when to construct, when to close, threading.
+- [Recipes](recipes/swiftui-binding.md): SwiftUI / Compose patterns, captive-portal handling, one-shot reads.

@@ -1,6 +1,6 @@
 # Android
 
-Reachable's Android implementation wraps `ConnectivityManager.NetworkCallback`
+The Android implementation wraps `ConnectivityManager.NetworkCallback`
 registered against a `NetworkRequest` that requires both
 `NET_CAPABILITY_INTERNET` and `NET_CAPABILITY_VALIDATED`.
 
@@ -12,24 +12,23 @@ import com.happycodelucky.reachable.Reachability
 val reachability: Reachability = Reachability(applicationContext)
 ```
 
-The construction:
+Construction:
 
-1. Calls `context.applicationContext.getSystemService(ConnectivityManager::class.java)`
-   — the implementation always upgrades to `applicationContext` to avoid
+1. Calls `context.applicationContext.getSystemService(ConnectivityManager::class.java)`.
+   The implementation always upgrades to `applicationContext` to avoid
    leaking activity-scoped contexts.
-2. Builds a `NetworkRequest` requiring `INTERNET + VALIDATED` (see
-   [Validated vs available](../concepts/validated-vs-available.md) for why both).
-3. **Eagerly seeds** `status.value` from
-   `connectivityManager.activeNetwork` plus `getNetworkCapabilities(network)`.
-   This means `status.value` is meaningful **immediately** after construction,
-   before the first async callback fires — useful for `LaunchedEffect`-style
-   checks on app start.
+2. Builds a `NetworkRequest` requiring `INTERNET + VALIDATED`. See
+   [Validated vs available](../concepts/validated-vs-available.md) for
+   why both.
+3. Eagerly seeds `status.value` from `connectivityManager.activeNetwork`
+   and `getNetworkCapabilities(network)`. `status.value` is therefore
+   meaningful immediately after construction, before any async callback —
+   useful for `LaunchedEffect`-style checks on app start.
 4. Calls `connectivityManager.registerNetworkCallback(request, callback)`.
 
 ## What gets read
 
-`onCapabilitiesChanged(network, capabilities)` is the primary callback —
-the library checks each capability and transport in turn:
+`onCapabilitiesChanged(network, capabilities)` is the primary callback.
 
 | Reachable field        | NetworkCapabilities call                                                     |
 |------------------------|------------------------------------------------------------------------------|
@@ -38,7 +37,7 @@ the library checks each capability and transport in turn:
 | `transport.Cellular`   | `hasTransport(TRANSPORT_CELLULAR)`                                           |
 | `transport.Ethernet`   | `hasTransport(TRANSPORT_ETHERNET)`                                           |
 | `metering.Unmetered`   | `hasCapability(NET_CAPABILITY_NOT_METERED)` or `hasCapability(NET_CAPABILITY_TEMPORARILY_NOT_METERED)` |
-| `metering.Constrained` | **Never emitted on Android** — no equivalent capability                       |
+| `metering.Constrained` | never emitted on Android — no equivalent capability                          |
 
 `onLost(network)` synthesises a "no internet" emission because the
 capability stream stops without a final terminator. If a different network
@@ -47,12 +46,10 @@ immediately.
 
 ## Permission
 
-The library declares `android.permission.ACCESS_NETWORK_STATE` in its own
-`AndroidManifest.xml`. The Android Manifest Merger pulls it into your app
-at build time — you don't need to add it yourself.
-
-It's a normal-protection permission, so no runtime grant is needed at any
-API level.
+`android.permission.ACCESS_NETWORK_STATE` is declared in the library's
+`AndroidManifest.xml` and merged into your app at build time. It's a
+normal-protection permission, so no runtime grant is needed at any API
+level.
 
 ```xml
 <!-- declared in the library AAR; merges into your app -->
@@ -61,9 +58,8 @@ API level.
 
 ## Threading
 
-`NetworkCallback` methods fire on a **binder thread** by default. The
-library keeps the callback body to a single `MutableStateFlow.value` write,
-which is concurrency-safe:
+`NetworkCallback` methods fire on a binder thread by default. The library
+keeps the callback body to a single `MutableStateFlow.value` write:
 
 ```kotlin
 private val callback = object : ConnectivityManager.NetworkCallback() {
@@ -86,27 +82,27 @@ fun ConnectivityBanner(reachability: Reachability) {
 }
 ```
 
-`collectAsStateWithLifecycle()` (from `androidx.lifecycle:lifecycle-runtime-compose`)
-is the right primitive — it auto-pauses Flow collection when the activity
-goes to STOPPED, preventing the StateFlow from doing useless work in the
-background.
+`collectAsStateWithLifecycle()` (from
+`androidx.lifecycle:lifecycle-runtime-compose`) auto-pauses Flow collection
+when the activity goes to STOPPED, so the StateFlow doesn't keep work
+alive in the background.
 
 ## Multi-process apps
 
 Android apps with `android:process=":foo"` services run each process
-isolated. Each process must construct its own `Reachability` —
+isolated. Each process must construct its own `Reachability`;
 `ConnectivityManager` registrations don't cross process boundaries.
 
-This is rare in modern Compose-shaped apps but worth knowing if you have
-a long-running service in a separate process.
+Rare in modern Compose-shaped apps, but worth knowing if you have a
+long-running service in a separate process.
 
 ## Min-SDK
 
-`minSdk 30` (Android 11). Set in `gradle/libs.versions.toml`. The APIs the
-library uses (`NetworkCallback`, `NetworkRequest`, `NET_CAPABILITY_VALIDATED`,
-`getSystemService(Class)`) are all available on API 23+, so the floor is
-much higher than what the implementation requires — it reflects the
-project's broader baseline rather than an Android API constraint.
+`minSdk 30` (Android 11), set in `gradle/libs.versions.toml`. The APIs the
+library uses (`NetworkCallback`, `NetworkRequest`,
+`NET_CAPABILITY_VALIDATED`, `getSystemService(Class)`) are available on
+API 23+, so the floor is much higher than what the implementation
+requires. It reflects the project's broader baseline.
 
 ## ABI
 
@@ -117,6 +113,6 @@ ARM only, no exceptions.
 
 ## See also
 
-- [Concepts → Validated vs available](../concepts/validated-vs-available.md) — why we require both `INTERNET + VALIDATED`.
-- [Concepts → Lifecycle](../concepts/lifecycle.md) — eager-seed details, threading, idempotent close.
-- [Recipes → Compose binding](../recipes/compose-binding.md) — full `collectAsStateWithLifecycle()` patterns.
+- [Concepts → Validated vs available](../concepts/validated-vs-available.md): why both `INTERNET` and `VALIDATED`.
+- [Concepts → Lifecycle](../concepts/lifecycle.md): eager-seed details, threading, idempotent close.
+- [Recipes → Compose binding](../recipes/compose-binding.md): full `collectAsStateWithLifecycle()` patterns.

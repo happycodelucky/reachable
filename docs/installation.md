@@ -1,26 +1,24 @@
 # Installation
 
-Reachable is published as:
-
-- **An XCFramework** zipped and uploaded to GitHub Packages on each release,
-  with a `Package.swift` at the repo root pointing SPM at it.
-- **An Android AAR** published to GitHub Packages under
-  `com.happycodelucky.reachable:reachable`.
+Reachable ships as an XCFramework on Swift Package Manager (iOS, macOS) and
+as an Android AAR on Maven (Android, JVM-bound consumers). Both artifacts are
+hosted on GitHub Packages.
 
 ## Platform floors
 
-| Platform     | Floor      | Why                                                              |
-|--------------|------------|------------------------------------------------------------------|
-| iOS / iPadOS | iOS 18.0   | Aligns the deployment target across the ARM-only KMP slices.     |
-| macOS        | macOS 15.0 | Same — Network framework is available much earlier (10.14+).     |
-| Android      | API 30     | arm64-v8a only; minSdk pinned to 30 (Android 11).                |
-| Kotlin       | 2.3.x      | K2 only. SKIE caps the upper bound; track the [SKIE release notes](https://github.com/touchlab/SKIE/releases). |
+| Platform     | Floor      |
+|--------------|------------|
+| iOS / iPadOS | iOS 18     |
+| macOS        | macOS 15   |
+| Android      | API 30 (Android 11), `arm64-v8a` only |
+| Kotlin       | 2.3.x (K2). The upper bound tracks SKIE — see [SKIE releases](https://github.com/touchlab/SKIE/releases). |
 
-## iOS / macOS — Swift Package Manager
+## Swift Package Manager (iOS, macOS)
 
-Add the package to Xcode (**File → Add Package Dependencies…**) using
-`https://github.com/happycodelucky/reachable.git`, or declare it in a
-`Package.swift` manifest:
+In Xcode: **File → Add Package Dependencies…** with
+`https://github.com/happycodelucky/reachable.git`.
+
+In a `Package.swift` manifest:
 
 ```swift
 // swift-tools-version:6.0
@@ -43,13 +41,12 @@ let package = Package(
 )
 ```
 
-Pin to a tag (`from: "0.1.0"`, `exact: "0.1.0"`, or
-`"0.1.0"..<"0.2.0"`) — never to `branch: "main"`. The `Package.swift` at
-the root of the source repo is updated by every release with a fresh
-binary URL + checksum, so a `branch: "main"` consumer would see in-progress
-work.
+Pin to a tag (`from:`, `exact:`, or a half-open range), never to
+`branch: "main"`. Each release rewrites `Package.swift` at the repo root with
+a fresh binary URL and checksum, so a `branch: "main"` consumer would see
+work in progress.
 
-The Swift module is named `Reachable`:
+The Swift module is `Reachable`:
 
 ```swift
 import Reachable
@@ -57,11 +54,11 @@ import Reachable
 let reachability: any Reachability = Reachability()
 ```
 
-### Authenticating to GitHub Packages
+### GitHub Packages authentication
 
-The XCFramework binary that the SPM manifest references lives in GitHub
-Packages, which requires authentication even for public repos. Add a
-`~/.netrc` entry on every machine that resolves the package:
+The XCFramework binary lives in GitHub Packages, which requires
+authentication even for public repositories. Add a `~/.netrc` entry on every
+machine that resolves the package:
 
 ```
 machine maven.pkg.github.com
@@ -69,11 +66,11 @@ login your-github-username
 password ghp_your_personal_access_token   # needs `read:packages` scope
 ```
 
-CI environments use `GITHUB_TOKEN` automatically.
+CI uses the workflow's `GITHUB_TOKEN` automatically.
 
-## Android — Gradle
+## Gradle (Android, JVM)
 
-Add GitHub Packages to your repositories (settings.gradle.kts):
+Add GitHub Packages to `settings.gradle.kts`:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -91,7 +88,7 @@ dependencyResolutionManagement {
 }
 ```
 
-Then in your app module's `build.gradle.kts`:
+Then declare the dependency:
 
 ```kotlin
 dependencies {
@@ -99,32 +96,29 @@ dependencies {
 }
 ```
 
-The library declares `android.permission.ACCESS_NETWORK_STATE` in its own
-manifest; the merger pulls it into your app at build time. No runtime
-permission grant needed (it's a normal-protection permission).
+`android.permission.ACCESS_NETWORK_STATE` is declared in the library's own
+manifest and merged in at build time. It's a normal-protection permission,
+so no runtime grant is needed.
 
 ## Local development override
 
-If you're working on the library itself, point Xcode at the locally-built
-debug XCFramework instead of the published one:
+When working on the library itself, build the XCFramework locally and point
+your Xcode app at it:
 
 ```bash
 ./gradlew :reachable:spmDevBuild
 ```
 
-This rebuilds the debug XCFramework and rewrites `Package.swift` at the
-repo root to reference the local file (`./reachable/build/XCFrameworks/debug/Reachable.xcframework`).
-Any Xcode app declaring `.package(path: "../reachable")` (or similar
-relative path to the repo root) automatically picks up your changes after a
-rebuild — no Gradle inside Xcode.
+The task rebuilds `reachable/build/XCFrameworks/debug/Reachable.xcframework`
+and rewrites the root `Package.swift` to reference the local file. Any Xcode
+app declaring `.package(path: "../reachable")` picks up your changes after a
+rebuild, with no Gradle inside Xcode.
 
-The sample apps under `/iOSApp` and `/macOSApp` use exactly this pattern;
-see [iOSApp/README.md](https://github.com/happycodelucky/reachable/blob/main/iOSApp/README.md)
+The sample apps under `/iOSApp` and `/macOSApp` use this pattern; see
+[iOSApp/README.md](https://github.com/happycodelucky/reachable/blob/main/iOSApp/README.md)
 for the iteration loop.
 
 ## Verification
-
-After installing, the smallest verification step:
 
 === "Kotlin"
 
@@ -141,5 +135,3 @@ After installing, the smallest verification step:
     print(r.status.value!)    // ReachabilityStatus(reachable: …, transport: …, metering: …)
     r.close()
     ```
-
-If those print a sensible reading on a connected device, you're good.
