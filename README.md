@@ -31,15 +31,38 @@ becomes `async throws`.
 
 ---
 
+## Documentation
+
+The full mkdocs site is published to
+[happycodelucky.github.io/reachable](https://happycodelucky.github.io/reachable/).
+Highlights:
+
+- [Getting started](docs/getting-started.md): three steps from install to
+  a UI-bound `Reachability`.
+- [Installation](docs/installation.md): SPM, Gradle, GitHub Packages auth,
+  local development override.
+- [Concepts → API design](docs/concepts/api-design.md): the public type,
+  the asymmetric factories, why no `Result`.
+- [Concepts → Lifecycle](docs/concepts/lifecycle.md): when to construct,
+  when to close, threading.
+- [Concepts → Validated vs available](docs/concepts/validated-vs-available.md):
+  why `INTERNET + VALIDATED`, the wired-Ethernet quirk, captive portals.
+- Recipes: [SwiftUI binding](docs/recipes/swiftui-binding.md),
+  [Compose binding](docs/recipes/compose-binding.md),
+  [React to changes](docs/recipes/react-to-changes.md),
+  [Captive portals](docs/recipes/captive-portal.md).
+- [Contributing](docs/contributing.md): development environment,
+  reporting bugs, PR expectations.
+
+---
+
 ## Quick example
 
 ```kotlin
 val reachability: Reachability = Reachability(context) // or Reachability() on Apple
-
 if (reachability.isReachable) {
     // online
 }
-
 reachability.status.collect { status ->
     // every state change
 }
@@ -72,9 +95,13 @@ struct MyApp: App {
 }
 
 @MainActor
-final class ConnectivityModel: ObservableObject {
-    @Published var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
+@Observable
+final class ConnectivityModel {
+    var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
+
+    @ObservationIgnored
     private let reachability: any Reachability
+    @ObservationIgnored
     private var task: Task<Void, Never>?
 
     init(reachability: any Reachability) {
@@ -202,31 +229,6 @@ work — mise just ensures everyone (and CI) runs the same versions.
 
 For the iOS and macOS sample apps see [`iOSApp/README.md`](./iOSApp/README.md)
 and [`macOSApp/README.md`](./macOSApp/README.md).
-
----
-
-## Documentation
-
-The full mkdocs site is published to
-[happycodelucky.github.io/reachable](https://happycodelucky.github.io/reachable/).
-Highlights:
-
-- [Getting started](docs/getting-started.md): three steps from install to
-  a UI-bound `Reachability`.
-- [Installation](docs/installation.md): SPM, Gradle, GitHub Packages auth,
-  local development override.
-- [Concepts → API design](docs/concepts/api-design.md): the public type,
-  the asymmetric factories, why no `Result`.
-- [Concepts → Lifecycle](docs/concepts/lifecycle.md): when to construct,
-  when to close, threading.
-- [Concepts → Validated vs available](docs/concepts/validated-vs-available.md):
-  why `INTERNET + VALIDATED`, the wired-Ethernet quirk, captive portals.
-- Recipes: [SwiftUI binding](docs/recipes/swiftui-binding.md),
-  [Compose binding](docs/recipes/compose-binding.md),
-  [React to changes](docs/recipes/react-to-changes.md),
-  [Captive portals](docs/recipes/captive-portal.md).
-- [Contributing](docs/contributing.md): development environment,
-  reporting bugs, PR expectations.
 
 ---
 
