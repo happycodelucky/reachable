@@ -141,14 +141,20 @@ model.
 
 ## Testing this library locally
 
+Toolchain bootstrap once per machine — `brew install mise && mise install`
+from the repo root. See [docs/contributing.md](../docs/contributing.md) for
+the full prerequisite list (Xcode, Android SDK).
+
 ```bash
-./gradlew :reachable:check                                   # ktlint + all unit tests
-./gradlew :reachable:linkDebugFrameworkIosArm64              # iOS device slice
-./gradlew :reachable:linkDebugFrameworkIosSimulatorArm64     # Apple Silicon simulator
-./gradlew :reachable:linkDebugFrameworkMacosArm64            # macOS desktop slice
-./gradlew :reachable:assembleReachableXCFramework            # SPM-consumable artifact
-./gradlew :reachable:assemble                                # Android AAR
+mise run check          # ktlint + all unit tests
+mise run build:ios      # iOS device + Apple Silicon simulator debug frameworks
+mise run build:macos    # macOS desktop debug framework
+mise run build          # SPM-consumable Reachable.xcframework
+mise run build:android  # Android AAR
 ```
+
+Each of these is a thin wrapper around the equivalent `./gradlew` invocation;
+see [`/mise.toml`](../mise.toml) for the exact mapping.
 
 Manual end-to-end verification: build a tiny SwiftUI or Compose app, bind
 to `reachability.status`, and toggle airplane mode, switch between Wi-Fi

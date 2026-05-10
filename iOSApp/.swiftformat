@@ -1,0 +1,14 @@
+# SwiftFormat configuration for iOSApp.
+#
+# Minimal scaffold — pinned to swiftformat 0.61.1 via /mise.toml. Rule
+# curation is intentionally a follow-up: this file exists so
+# `mise run format:swift` has a known Swift version + exclusion list to
+# work against without rewriting the generated .xcodeproj or DerivedData.
+#
+# Docs: https://github.com/nicklockwood/SwiftFormat/blob/main/README.md
+
+--swiftversion 6.0
+
+--exclude iOSApp.xcodeproj
+--exclude DerivedData
+--exclude .build

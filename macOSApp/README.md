@@ -11,15 +11,14 @@ The implementation is the same as iOSApp; both consume the same
 
 ## Prerequisites
 
-Same as iOSApp: Xcode 16+,
-[`xcodegen`](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`), JDK 21 and Gradle.
+Same as iOSApp: Xcode 16+ and the mise-managed toolchain. Run
+`brew install mise` then `mise install` from the repo root. See
+[iOSApp/README.md](../iOSApp/README.md#prerequisites) for the full list.
 
 ## First-time setup
 
 ```bash
-cd macOSApp
-make all
+mise run open:macos   # spm:dev + xcodegen + open macOSApp in Xcode
 ```
 
 In Xcode, pick the macOSApp scheme and Run.
@@ -29,8 +28,7 @@ In Xcode, pick the macOSApp scheme and Run.
 After editing Kotlin in `/reachable/src/...`:
 
 ```bash
-cd macOSApp
-make spm
+mise run spm:dev
 ```
 
 Then rebuild the macOSApp target in Xcode. See

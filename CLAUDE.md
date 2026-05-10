@@ -324,6 +324,7 @@ We use **Touchlab's KMMBridge** to publish the iOS framework. **CocoaPods is for
 ## 10. Build & tooling
 
 - Single source of truth: `gradle/libs.versions.toml`.
+- Local toolchain pinned in `mise.toml` (JDK, Gradle wrapper, Python, xcodegen, gh, swiftlint, swiftformat). Run `mise install` on first checkout. mise does not pin Kotlin/AGP/SKIE — Gradle's version catalog owns those.
 - Configuration cache + build cache on. Don't disable.
 - Per-PR CI: build commonMain + every Tier 1 target. Run JVM and Android unit tests. iOS tests run nightly.
 
