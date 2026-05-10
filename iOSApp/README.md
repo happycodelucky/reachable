@@ -7,17 +7,23 @@ Settings → Cellular → Cellular Data Options to see `Metering.Constrained`.
 
 ## Prerequisites
 
-- Xcode 16+ (the project targets iOS 18.0).
-- [`xcodegen`](https://github.com/yonaskolb/XcodeGen) to generate the
-  `.xcodeproj` from `project.yml`. Install with `brew install xcodegen`.
-- JDK 21 and Gradle at the repo root (the SPM dependency is produced by
-  Gradle).
+- Xcode 16+ (the project targets iOS 18.0). Xcode itself is not managed by
+  mise; install the latest stable Xcode that the current SKIE release
+  supports (see [docs/contributing.md](../docs/contributing.md)).
+- [`mise`](https://mise.jdx.dev) for everything else. From the repo root:
+  ```bash
+  brew install mise
+  mise trust
+  mise install
+  ```
+  That installs the JDK, the Gradle bootstrap binary, `xcodegen`, `gh`,
+  Python, `swiftlint`, and `swiftformat` at the versions pinned in
+  [`/mise.toml`](../mise.toml).
 
 ## First-time setup
 
 ```bash
-cd iOSApp
-make all          # rebuilds local SPM artifact, generates xcodeproj, opens Xcode
+mise run open:ios   # rebuilds local SPM artifact, generates xcodeproj, opens Xcode
 ```
 
 In Xcode, pick the iOSApp scheme and an iOS Simulator destination, then
@@ -28,8 +34,7 @@ Run.
 After editing Kotlin in `/reachable/src/...`:
 
 ```bash
-cd iOSApp
-make spm          # rebuilds the debug XCFramework, updates root Package.swift
+mise run spm:dev    # rebuilds the debug XCFramework, updates root Package.swift
 ```
 
 Then rebuild the app target in Xcode. The `.xcodeproj` only needs
@@ -42,7 +47,8 @@ regenerating when `project.yml` changes.
 - `iOSApp/iOSApp.swift` — single-file SwiftUI app and
   `ReachabilityViewModel` bridging the Kotlin `StateFlow` as a Swift
   `AsyncSequence` via SKIE.
-- `Makefile` — convenience targets (`xcodeproj`, `spm`, `all`).
+- `.swiftlint.yml`, `.swiftformat` — Swift lint and format configs
+  consumed by `mise run lint:swift` and `mise run format:swift`.
 
 ## How the Reachable dependency is wired
 
@@ -53,7 +59,7 @@ Xcode re-reads the binary on every open, so the edit-build cycle for
 Kotlin code is:
 
 1. Edit Kotlin under `/reachable/src/...`
-2. `make spm` (or `./gradlew :reachable:spmDevBuild` from the repo root)
+2. `mise run spm:dev` (or `./gradlew :reachable:spmDevBuild` from the repo root)
 3. Rebuild the iOSApp target in Xcode
 
 After a `vX.Y.Z` release, the same `Package.swift` is overwritten with a

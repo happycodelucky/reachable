@@ -25,6 +25,9 @@ DerivedData/
 iOSApp/iOSApp.xcodeproj/
 macOSApp/macOSApp.xcodeproj/
 
+# --- mise: per-user version overrides ---
+.mise.local.toml
+
 # --- macOS ---
 .DS_Store
 

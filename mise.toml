@@ -1,2 +1,158 @@
+# mise — toolchain pins and task surface for the Reachable KMP repo.
+# Run `mise install` to provision tools; `mise tasks` to list runnable tasks.
+#
+# Keep this file in sync with:
+#   gradle/libs.versions.toml                 (jdk target, AGP, Kotlin)
+#   gradle/wrapper/gradle-wrapper.properties  (distributionUrl)
+#
+# Single source of truth for non-Gradle build deps. Versions for Kotlin,
+# AGP, SKIE, KMMBridge, ktlint-gradle, etc. live in gradle/libs.versions.toml
+# (CLAUDE.md §2, §10) — mise must not duplicate them.
+#
+# Bootstrap on a fresh machine:
+#   brew install mise
+#   mise trust
+#   mise install
+#
+# Xcode is NOT managed by mise. Install the latest stable Xcode that SKIE
+# supports; the docs/contributing.md "Prerequisites" section records the
+# current minimum.
+
 [tools]
-gradle = "9.4.1"
+java        = "temurin-21.0.11+10.0.LTS"   # CLAUDE.md §2 — JDK 21 LTS, Apple Silicon aarch64.
+gradle      = "9.4.1"                       # Matches gradle/wrapper/gradle-wrapper.properties.
+python      = "3.12.13"                     # docs/requirements.txt mkdocs toolchain.
+xcodegen    = "2.45.4"                      # iOSApp/macOSApp project.yml → .xcodeproj.
+gh          = "2.92.0"                      # release.yml uses `gh release create`.
+swiftlint   = "0.63.2"                      # iOSApp/macOSApp Swift lint.
+swiftformat = "0.61.1"                      # iOSApp/macOSApp Swift formatter.
+
+# Deliberately NOT pinned here:
+#   - kotlin: gradle/libs.versions.toml owns it (CLAUDE.md §2).
+#   - cocoapods: forbidden (CLAUDE.md §9, §13).
+#   - node: not used in this repo.
+
+# ---------------------------------------------------------------------------
+# Tasks. Naming: `domain:action`, colon-separated, lowercase.
+# Lowercase ios/macos in task names is fine — these are CLI tokens, not
+# source-identifier symbols. The Apple-casing rule (CLAUDE.md §3) still
+# applies to file names, types, and comments below.
+# ---------------------------------------------------------------------------
+
+# --- check / lint / format -------------------------------------------------
+
+[tasks.check]
+description = "Run ktlint + every unit test (iOS simulator, macOS, Android host)."
+run = "./gradlew :reachable:check"
+
+[tasks.test]
+description = "Alias for `check`."
+depends = ["check"]
+
+[tasks.lint]
+description = "ktlint only (no tests)."
+run = "./gradlew :reachable:ktlintCheck"
+
+[tasks.format]
+description = "ktlint auto-fix."
+run = "./gradlew :reachable:ktlintFormat"
+
+[tasks."lint:swift"]
+description = "Run swiftlint across the iOS and macOS sample apps."
+run = """
+swiftlint lint --strict iOSApp
+swiftlint lint --strict macOSApp
+"""
+
+[tasks."format:swift"]
+description = "Run swiftformat across the iOS and macOS sample apps."
+run = """
+swiftformat iOSApp
+swiftformat macOSApp
+"""
+
+# --- build -----------------------------------------------------------------
+
+[tasks.build]
+description = "Assemble the release Reachable.xcframework (SPM-consumable)."
+run = "./gradlew :reachable:assembleReachableXCFramework"
+
+[tasks."build:ios"]
+description = "Link debug iOS framework slices (device + Apple Silicon simulator)."
+run = """
+./gradlew :reachable:linkDebugFrameworkIosArm64 \
+          :reachable:linkDebugFrameworkIosSimulatorArm64
+"""
+
+[tasks."build:macos"]
+description = "Link the debug macOS framework slice (Apple Silicon)."
+run = "./gradlew :reachable:linkDebugFrameworkMacosArm64"
+
+[tasks."build:android"]
+description = "Assemble the Android AAR."
+run = "./gradlew :reachable:assemble"
+
+[tasks.xcframework]
+description = "Alias for `build` — produces the release Reachable.xcframework."
+depends = ["build"]
+
+# --- iteration helpers -----------------------------------------------------
+
+[tasks."spm:dev"]
+description = "Rebuild local debug XCFramework + regenerate root Package.swift."
+run = "./gradlew :reachable:spmDevBuild"
+
+[tasks."xcodeproj:ios"]
+description = "Generate iOSApp/iOSApp.xcodeproj from project.yml."
+dir = "iOSApp"
+run = "xcodegen generate --spec project.yml"
+
+[tasks."xcodeproj:macos"]
+description = "Generate macOSApp/macOSApp.xcodeproj from project.yml."
+dir = "macOSApp"
+run = "xcodegen generate --spec project.yml"
+
+[tasks."open:ios"]
+description = "spm:dev + xcodegen + open iOSApp in Xcode."
+depends = ["spm:dev", "xcodeproj:ios"]
+dir = "iOSApp"
+run = "open iOSApp.xcodeproj"
+
+[tasks."open:macos"]
+description = "spm:dev + xcodegen + open macOSApp in Xcode."
+depends = ["spm:dev", "xcodeproj:macos"]
+dir = "macOSApp"
+run = "open macOSApp.xcodeproj"
+
+# --- docs ------------------------------------------------------------------
+
+[tasks."docs:install"]
+description = "Install the pinned mkdocs toolchain into the active python."
+run = "pip install -r docs/requirements.txt"
+
+[tasks."docs:dokka"]
+description = "Generate Dokka HTML and mirror it into docs/api/."
+run = "./gradlew copyDokkaToDocs"
+
+[tasks."docs:check"]
+description = "Validate docs structure (nav coverage, recipes have code)."
+run = "python3 docs/check.py"
+
+[tasks."docs:serve"]
+description = "Local mkdocs preview at http://localhost:8000."
+depends = ["docs:dokka"]
+run = "mkdocs serve"
+
+[tasks."docs:build"]
+description = "Strict mkdocs build — what CI runs."
+depends = ["docs:dokka", "docs:check"]
+run = "mkdocs build --strict"
+
+# --- housekeeping ----------------------------------------------------------
+
+[tasks.clean]
+description = "Gradle clean + drop generated xcodeproj bundles."
+run = """
+./gradlew clean
+rm -rf iOSApp/iOSApp.xcodeproj macOSApp/macOSApp.xcodeproj
+"""

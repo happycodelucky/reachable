@@ -14,13 +14,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      # mise pins the JDK, Gradle bootstrap binary, xcodegen, gh, python, and
+      # the Swift tooling (see /mise.toml). One install gives CI and local dev
+      # the same toolchain. setup-gradle below is layered on top purely for
+      # its dependency + build cache — mise has no equivalent.
+      - name: Set up mise toolchain
+        uses: jdx/mise-action@v2
         with:
-          distribution: temurin
-          java-version: 21
+          install: true
+          cache: true
 
-      - name: Set up Gradle
+      - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
       # Read major.minor from the in-tree fallback literal in build.gradle.kts
@@ -39,13 +43,18 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Computed CI version: $VERSION"
 
-      # `:reachable:check` runs ktlint + every unit test on every target
+      # `mise run check` runs ktlint + every unit test on every target
       # (iosSimulatorArm64Test, macosArm64Test, testAndroidHostTest).
-      # The XCFramework build is the KMMBridge-consumable artifact (CLAUDE.md §9).
+      # `mise run build` produces the KMMBridge-consumable XCFramework
+      # (CLAUDE.md §9). The CI version stamp is passed through to Gradle via
+      # ORG_GRADLE_PROJECT_version — the standard env-var form of `-Pversion=…`
+      # so the mise tasks don't need to know CI is the caller.
       - name: Build, test, and assemble XCFramework
+        env:
+          ORG_GRADLE_PROJECT_version: ${{ steps.version.outputs.VERSION }}
         run: |
-          ./gradlew :reachable:check :reachable:assembleReachableXCFramework \
-            -Pversion=${{ steps.version.outputs.VERSION }} --no-daemon
+          mise run check
+          mise run build
 
       - name: Upload XCFramework
         uses: actions/upload-artifact@v4

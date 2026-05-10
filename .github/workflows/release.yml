@@ -44,13 +44,15 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      # mise pins JDK, gradle, gh, etc. (see /mise.toml). setup-gradle below is
+      # layered on top solely for its build / dependency cache.
+      - name: Set up mise toolchain
+        uses: jdx/mise-action@v2
         with:
-          distribution: temurin
-          java-version: 21
+          install: true
+          cache: true
 
-      - name: Set up Gradle
+      - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
       # KMMBridge does the whole pipeline:

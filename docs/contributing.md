@@ -2,13 +2,31 @@
 
 ## Development environment
 
-- JDK 21 (Temurin recommended).
+### Toolchain (mise)
+
+[`mise`](https://mise.jdx.dev) pins every non-Gradle build dep: JDK, the
+Gradle bootstrap binary, Python (for the docs toolchain), `xcodegen`, `gh`,
+`swiftlint`, and `swiftformat`. Versions live in
+[`/mise.toml`](https://github.com/happycodelucky/reachable/blob/main/mise.toml)
+and match what CI runs.
+
+```bash
+brew install mise        # one-time, any directory
+mise trust               # one-time per checkout, accepts mise.toml
+mise install             # installs every tool at the pinned version
+```
+
+After that, the `mise run ...` task surface (see "Building locally" below)
+is the recommended entry point. Raw `./gradlew`, `mkdocs`, and `xcodegen`
+invocations still work; mise just ensures everyone runs the same versions.
+
+### Other prerequisites
+
 - Latest stable Xcode that the pinned SKIE version supports — see
-  [SKIE releases](https://github.com/touchlab/SKIE/releases).
-- Android SDK with command-line tools; `local.properties` should set `sdk.dir`.
-- Gradle 9.x via the wrapper (`./gradlew`).
-- [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
-  (`brew install xcodegen`) to regenerate the iOS / macOS sample projects.
+  [SKIE releases](https://github.com/touchlab/SKIE/releases). Xcode is
+  not managed by mise; install it yourself.
+- Android SDK with command-line tools; `local.properties` should set
+  `sdk.dir`.
 
 [CLAUDE.md](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
 is the binding rule set: Kotlin-first dependencies, ARM-only targets, SKIE,
@@ -31,27 +49,37 @@ flagging when you hit them.
 
 ## Building locally
 
+The mise tasks below wrap `./gradlew` — pick whichever surface you prefer.
+
 ```bash
-./gradlew :reachable:check                                   # ktlint + all unit tests
-./gradlew :reachable:linkDebugFrameworkIosArm64              # iOS device slice
-./gradlew :reachable:linkDebugFrameworkIosSimulatorArm64     # Apple Silicon simulator
-./gradlew :reachable:linkDebugFrameworkMacosArm64            # macOS desktop slice
-./gradlew :reachable:assembleReachableXCFramework            # SPM-consumable artifact
-./gradlew :reachable:assemble                                # Android AAR
-./gradlew :androidApp:assembleDebug                          # sample Android app
+mise run check          # ktlint and every unit test (iOS sim, macOS, Android host)
+mise run build:ios      # iOS device and Apple Silicon simulator debug frameworks
+mise run build:macos    # macOS desktop debug framework
+mise run build          # release Reachable.xcframework (SPM-consumable)
+mise run build:android  # Android AAR
+
+# Raw Gradle equivalents, for reference:
+./gradlew :reachable:check
+./gradlew :reachable:linkDebugFrameworkIosArm64
+./gradlew :reachable:linkDebugFrameworkIosSimulatorArm64
+./gradlew :reachable:linkDebugFrameworkMacosArm64
+./gradlew :reachable:assembleReachableXCFramework
+./gradlew :reachable:assemble
+./gradlew :androidApp:assembleDebug
 ```
 
-The iOS and macOS samples build via `xcodebuild`; see `iOSApp/README.md` and
-`macOSApp/README.md`.
+For the iOS and macOS samples, `mise run open:ios` (and `open:macos`) chains
+`spm:dev` → `xcodegen` → opens the project in Xcode. See
+[iOSApp/README.md](https://github.com/happycodelucky/reachable/blob/main/iOSApp/README.md)
+and `macOSApp/README.md` for the iteration loop.
 
 ## Building the docs
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r docs/requirements.txt
-.venv/bin/mkdocs serve            # local preview at http://localhost:8000
-.venv/bin/mkdocs build --strict   # what CI runs
-python3 docs/check.py             # nav coverage, recipes have code blocks
+mise run docs:install   # install pinned mkdocs toolchain into the active python
+mise run docs:serve     # local preview at http://localhost:8000 (auto-runs docs:dokka)
+mise run docs:build     # what CI runs; strict mkdocs build
+mise run docs:check     # nav coverage, recipes have code blocks
 ```
 
 `mkdocs build --strict` fails on broken internal links and dead anchors.
@@ -60,7 +88,7 @@ from `mkdocs.yml`, every recipe has at least one code block.
 
 ## Pull request expectations
 
-- `./gradlew :reachable:check` passes locally.
+- `mise run check` passes locally.
 - New public API has KDoc and an [API design](concepts/api-design.md)
   rationale (a sentence in the PR description is usually enough).
 - New behavior has a test in `commonTest` or the relevant platform test
