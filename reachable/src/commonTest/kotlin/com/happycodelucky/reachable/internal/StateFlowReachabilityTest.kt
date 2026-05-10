@@ -42,6 +42,9 @@ class StateFlowReachabilityTest {
 
     private val wifi = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered)
     private val cell = ReachabilityStatus(true, Transport.Cellular, Metering.Metered)
+    private val constrainedWifi =
+        ReachabilityStatus(true, Transport.Wifi, Metering.Constrained)
+    private val offline = ReachabilityStatus(false, Transport.None, Metering.Unmetered)
 
     @Test
     fun statusStartsAsUnknown() {
@@ -115,4 +118,90 @@ class StateFlowReachabilityTest {
         // Last value frozen at close time.
         assertEquals(wifi, r.status.value)
     }
+
+    // ---- isReachable / isLowDataMode shortcuts ---------------------------
+
+    @Test
+    fun isReachable_readsLatestStatusValue() {
+        val r = FakeReachability()
+        // Pre-emission: Unknown is not reachable.
+        assertFalse(r.isReachable)
+        r.publish(wifi)
+        assertTrue(r.isReachable)
+        r.publish(offline)
+        assertFalse(r.isReachable)
+    }
+
+    @Test
+    fun isLowDataMode_isTrueOnlyForConstrainedMetering() {
+        val r = FakeReachability()
+        assertFalse(r.isLowDataMode)
+        r.publish(wifi) // Metering.Unmetered
+        assertFalse(r.isLowDataMode)
+        r.publish(cell) // Metering.Metered
+        assertFalse(r.isLowDataMode)
+        r.publish(constrainedWifi) // Metering.Constrained
+        assertTrue(r.isLowDataMode)
+    }
+
+    // ---- reachable / lowDataMode StateFlows -----------------------------
+
+    @Test
+    fun reachableFlow_initialValueMatchesCurrentStatus() =
+        runTest {
+            val r = FakeReachability()
+            r.publish(wifi) // seed before any collector subscribes
+            r.reachable.test {
+                assertEquals(true, awaitItem())
+            }
+        }
+
+    @Test
+    fun reachableFlow_emitsOnReachableTransitions() =
+        runTest {
+            val r = FakeReachability()
+            r.reachable.test {
+                assertEquals(false, awaitItem()) // Unknown
+                r.publish(wifi)
+                assertEquals(true, awaitItem())
+                r.publish(offline)
+                assertEquals(false, awaitItem())
+            }
+        }
+
+    @Test
+    fun reachableFlow_collapsesNonReachableChanges() =
+        runTest {
+            val r = FakeReachability()
+            r.reachable.test {
+                assertEquals(false, awaitItem())
+                r.publish(wifi)
+                assertEquals(true, awaitItem())
+                // Transport / metering changes that keep `reachable=true` are
+                // collapsed by StateFlow conflation on the derived flow.
+                r.publish(cell)
+                r.publish(constrainedWifi)
+                // No further emissions expected; cancelAndIgnoreRemainingEvents
+                // would also work, but this is more explicit about intent.
+                expectNoEvents()
+            }
+        }
+
+    @Test
+    fun lowDataModeFlow_emitsOnConstrainedTransitionsOnly() =
+        runTest {
+            val r = FakeReachability()
+            r.lowDataMode.test {
+                assertEquals(false, awaitItem()) // Unknown / Unmetered
+                r.publish(wifi)
+                // wifi is Unmetered → still false; conflated.
+                r.publish(cell)
+                // cell is Metered → still false; conflated.
+                expectNoEvents()
+                r.publish(constrainedWifi)
+                assertEquals(true, awaitItem())
+                r.publish(wifi)
+                assertEquals(false, awaitItem())
+            }
+        }
 }

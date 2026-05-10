@@ -46,23 +46,32 @@ If it's offline, the call suspends until the next emission with
 
 `StateFlow` already conflates identical consecutive values, so naive
 `collect { }` only sees real changes. If you want to react only when the
-**reachable** axis flips (ignoring transport / metering churn), filter
-explicitly:
+**reachable** axis flips (ignoring transport / metering churn), use the
+single-axis shortcut [`Reachability.reachable`](../concepts/api-design.md#single-axis-shortcuts):
 
 ```kotlin
-reachability.status
-    .map { it.reachable }
-    .distinctUntilChanged()
-    .collect { isReachable ->
-        if (isReachable) onlineTransitionLogger.log("back online")
-        else onlineTransitionLogger.log("went offline")
-    }
+reachability.reachable.collect { isReachable ->
+    if (isReachable) onlineTransitionLogger.log("back online")
+    else onlineTransitionLogger.log("went offline")
+}
 ```
 
-The `.map { it.reachable }.distinctUntilChanged()` collapses every
-`ReachabilityStatus(true, Wifi, Unmetered)` → `ReachabilityStatus(true,
-Cellular, Metered)` transition into a single emission for the unchanged
-`reachable=true`.
+The shortcut is a dedicated `MutableStateFlow` that the library updates
+synchronously alongside `status` — it conflates identical consecutive
+values and a late-joining collector immediately sees the current value.
+There's nothing to gain from re-implementing it manually with
+`.map { … }.distinctUntilChanged()` on top of `status`.
+
+The same pattern applies for the Low Data Mode axis:
+
+```kotlin
+reachability.lowDataMode.collect { isOn ->
+    if (isOn) deferLargeTransfersUntilUnconstrained()
+}
+```
+
+Note `lowDataMode` is **always** `false` on Android — see
+[Concepts → API design](../concepts/api-design.md#meteringconstrained-is-apple-only).
 
 ## Detect transport changes for analytics
 

@@ -24,6 +24,15 @@ public data class ReachabilityStatus(
 
 public interface Reachability : AutoCloseable {
     public val status: StateFlow<ReachabilityStatus>
+
+    // Convenience shortcuts — synchronous reads off `status.value`.
+    public val isReachable: Boolean
+    public val isLowDataMode: Boolean
+
+    // Reactive shortcuts — derived StateFlows, conflated, started eagerly.
+    public val reachable: StateFlow<Boolean>
+    public val lowDataMode: StateFlow<Boolean>
+
     override fun close()
 }
 
@@ -52,6 +61,29 @@ changes") collapse into one primitive: `StateFlow<ReachabilityStatus>`.
 Adding a separate `suspend fun current(): ReachabilityStatus` would bloat
 the API and force consumers to choose between two equivalent calls. We
 don't.
+
+### Single-axis shortcuts
+
+The two most-asked questions — "is it online?" and "is Low Data Mode on?" —
+get dedicated properties so callers never have to spell
+`status.value.reachable` or pull `Metering` into a single-purpose call site:
+
+| Need                          | Call                              |
+|-------------------------------|-----------------------------------|
+| Sync "is it online?"          | `reachability.isReachable`        |
+| Sync "is Low Data Mode on?"   | `reachability.isLowDataMode`      |
+| Reactive online/offline only  | `reachability.reachable.collect { }` |
+| Reactive Low-Data-Mode only   | `reachability.lowDataMode.collect { }` |
+
+The reactive variants are dedicated `MutableStateFlow`s that the shared base
+class updates synchronously alongside `status` from inside `emit()`. They
+conflate identical consecutive values (transport / metering churn that
+doesn't flip the relevant axis is dropped) and a late-joining collector
+immediately sees the current value.
+
+`isLowDataMode` and `lowDataMode` are **always** `false` on Android, since
+Android has no equivalent of Apple's Low Data Mode signal. See
+[`Metering.Constrained` is Apple-only](#meteringconstrained-is-apple-only).
 
 ## Composition over a sealed hierarchy
 

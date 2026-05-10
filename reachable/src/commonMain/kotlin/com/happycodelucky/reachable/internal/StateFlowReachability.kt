@@ -8,6 +8,7 @@
  */
 package com.happycodelucky.reachable.internal
 
+import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.Reachability
 import com.happycodelucky.reachable.ReachabilityStatus
 import kotlinx.atomicfu.atomic
@@ -42,6 +43,26 @@ internal abstract class StateFlowReachability : Reachability {
     private val _status = MutableStateFlow(ReachabilityStatus.Unknown)
     final override val status: StateFlow<ReachabilityStatus> = _status.asStateFlow()
 
+    // The single-axis StateFlows are owned `MutableStateFlow`s rather than
+    // `status.map { … }.stateIn(…)` derivations. The `stateIn`-based shape
+    // works in steady state but races with publishes that happen between
+    // construction and a collector's first `awaitItem()` — `Eagerly` schedules
+    // the upstream collector on the scope's dispatcher, which doesn't always
+    // run before the next `value` write under virtual-time test schedulers.
+    // Updating these from inside [emit] keeps the writes causally ordered
+    // with `_status` and avoids the race.
+    private val _reachable = MutableStateFlow(_status.value.reachable)
+    final override val reachable: StateFlow<Boolean> = _reachable.asStateFlow()
+
+    private val _lowDataMode = MutableStateFlow(_status.value.metering == Metering.Constrained)
+    final override val lowDataMode: StateFlow<Boolean> = _lowDataMode.asStateFlow()
+
+    final override val isReachable: Boolean
+        get() = _reachable.value
+
+    final override val isLowDataMode: Boolean
+        get() = _lowDataMode.value
+
     private val closed = atomic(false)
 
     /**
@@ -55,6 +76,13 @@ internal abstract class StateFlowReachability : Reachability {
     protected fun emit(next: ReachabilityStatus) {
         if (closed.value) return
         _status.value = next
+        // The single-axis StateFlows are kept causally consistent with `_status`
+        // by writing to them in the same call. `MutableStateFlow.value` writes
+        // are conflating, so identical successive values are dropped — a
+        // transport-only change publishes to `_status` but neither derived flow
+        // observes a new emission.
+        _reachable.value = next.reachable
+        _lowDataMode.value = next.metering == Metering.Constrained
     }
 
     final override fun close() {

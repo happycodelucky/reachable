@@ -97,6 +97,26 @@ every change.
     }
     ```
 
+### Single-axis shortcuts
+
+For the two most-asked questions there are dedicated shortcut properties so
+you don't have to spell `status.value.reachable` or pull in `Metering`:
+
+```kotlin
+if (reachability.isReachable) { /* online */ }
+if (reachability.isLowDataMode) { /* defer large transfers */ }
+
+// Reactive variants:
+reachability.reachable.collect { online -> /* … */ }
+reachability.lowDataMode.collect { isOn -> /* … */ }
+```
+
+Both reactive flows share their upstream observer with `status` and conflate
+identical consecutive values — see
+[Concepts → API design](concepts/api-design.md#single-axis-shortcuts).
+
+### Branching on the full status
+
 That's the full surface. Three additional axes you might branch on:
 
 ```kotlin

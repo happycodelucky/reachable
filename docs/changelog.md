@@ -13,6 +13,14 @@ documented.
 
 - `interface Reachability : AutoCloseable` with one observable
   `val status: StateFlow<ReachabilityStatus>` and one teardown `fun close()`.
+- Single-axis shortcuts on `Reachability`:
+  - `val isReachable: Boolean` — synchronous "is it online right now?".
+  - `val isLowDataMode: Boolean` — synchronous "Apple Low Data Mode active?"
+    (always `false` on Android).
+  - `val reachable: StateFlow<Boolean>` — reactive variant of `isReachable`,
+    shares its upstream observer with `status` and conflates identical
+    consecutive values so transport / metering churn is dropped.
+  - `val lowDataMode: StateFlow<Boolean>` — reactive variant of `isLowDataMode`.
 - `data class ReachabilityStatus(reachable, transport, metering)`.
 - `enum class Transport { Wifi, Cellular, Ethernet, Other, None }`.
 - `enum class Metering { Unmetered, Metered, Constrained }` —

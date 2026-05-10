@@ -161,6 +161,49 @@ public interface Reachability : AutoCloseable {
     public val status: StateFlow<ReachabilityStatus>
 
     /**
+     * Convenience shortcut for `status.value.reachable`. Reads the current
+     * reachability boolean synchronously without unpacking the full
+     * [ReachabilityStatus]. Equivalent to:
+     *
+     * ```kotlin
+     * reachability.status.value.reachable
+     * ```
+     *
+     * For a reactive listener, prefer [reachable] (the `StateFlow<Boolean>`
+     * variant) so multiple emissions of the same value are conflated.
+     */
+    public val isReachable: Boolean
+
+    /**
+     * Convenience shortcut for `status.value.metering == Metering.Constrained`.
+     * On Apple, `true` means the user has Low Data Mode active for the
+     * current path; on Android this is **always** `false` (the platform has
+     * no equivalent capability — see [Metering] for the rationale).
+     *
+     * For a reactive listener, prefer [lowDataMode].
+     */
+    public val isLowDataMode: Boolean
+
+    /**
+     * Reactive variant of [isReachable]: emits the current reachability
+     * boolean, then a fresh emission whenever it changes. Built off [status]
+     * via `.map { it.reachable }`, so transport / metering churn that
+     * doesn't change the reachable axis is collapsed (StateFlow conflation).
+     *
+     * Cheaper than wiring your own `status.map { it.reachable }
+     * .distinctUntilChanged()` because the flow is shared across all
+     * collectors and started eagerly at construction time.
+     */
+    public val reachable: StateFlow<Boolean>
+
+    /**
+     * Reactive variant of [isLowDataMode]: emits `true` when the path is
+     * constrained (Apple Low Data Mode), `false` otherwise. **Always**
+     * `false` on Android — the platform has no equivalent of Low Data Mode.
+     */
+    public val lowDataMode: StateFlow<Boolean>
+
+    /**
      * Tear down the platform observer (Apple: `nw_path_monitor_cancel`;
      * Android: `unregisterNetworkCallback`) and cancel the internal coroutine
      * scope. Idempotent; subsequent calls are no-ops.
