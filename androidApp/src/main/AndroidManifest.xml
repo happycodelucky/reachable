@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reachable — androidApp sample manifest.
+
+  ACCESS_NETWORK_STATE merges in from the `:reachable` library's manifest, so
+  this app doesn't need to redeclare it. INTERNET is also unnecessary for the
+  reachability check itself (NetworkCallback only inspects state) — but most
+  real apps want it for actual networking.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="Reachable Sample"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

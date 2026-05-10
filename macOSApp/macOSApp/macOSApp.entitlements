@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Reachable — macOS sample entitlements.
+
+  App Sandbox is on (default for Mac App Store-eligible apps). Outgoing
+  network is enabled so the displayed reachability status reflects an app
+  that actually uses the network. nw_path_monitor itself does not require
+  any specific entitlement.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+</dict>
+</plist>

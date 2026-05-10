@@ -1,0 +1,49 @@
+# Reachable — macOSApp sample (Xcode project spec for `xcodegen`).
+#
+# Run `xcodegen generate` (or `make` from this directory) to emit
+# `macOSApp.xcodeproj` from this spec. The .xcodeproj is gitignored so the
+# spec is the single source of truth.
+#
+# The app declares a local Swift Package dependency at `../`, which points at
+# the root `Package.swift` written by `./gradlew :reachable:spmDevBuild`. Same
+# iteration loop as iOSApp — see iOSApp/README.md for the iteration pattern.
+
+name: macOSApp
+
+options:
+  bundleIdPrefix: com.happycodelucky.reachable.example
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+
+packages:
+  Reachable:
+    path: ../
+
+targets:
+  macOSApp:
+    type: application
+    platform: macOS
+    sources:
+      - path: macOSApp
+    info:
+      path: macOSApp/Info.plist
+      properties:
+        CFBundleDisplayName: Reachable
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        # The macOS sample is a SwiftUI lifecycle app; no AppDelegate needed.
+        # `LSApplicationCategoryType` keeps Xcode's "no category set" warning quiet.
+        LSApplicationCategoryType: public.app-category.developer-tools
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.happycodelucky.reachable.example.macos
+        SWIFT_VERSION: "5.10"
+        ENABLE_PREVIEWS: "YES"
+        # `App Sandbox` is on by default for macOS apps. Reachability uses
+        # nw_path_monitor which doesn't require any entitlements; we just
+        # need outgoing-network so the displayed status reflects real I/O.
+        CODE_SIGN_ENTITLEMENTS: macOSApp/macOSApp.entitlements
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - package: Reachable

@@ -1,0 +1,175 @@
+/*
+ * Reachable — public API surface (CLAUDE.md §8).
+ *
+ * Designed for Swift consumers as much as Kotlin ones: the enums become
+ * exhaustive Swift enums via SKIE, `data class` becomes a Swift struct-like
+ * value type, and `AutoCloseable.close()` reads natively in both languages.
+ */
+package com.happycodelucky.reachable
+
+import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * Which physical / virtual interface is carrying the active connection.
+ *
+ * Maps from Apple's `nw_interface_type_*` enum and Android's
+ * `NetworkCapabilities.TRANSPORT_*` flags. A path can use multiple interfaces
+ * simultaneously (VPN over Wi-Fi, for example); both platforms collapse to
+ * the highest-quality transport using the priority
+ * `WIFI > ETHERNET > CELLULAR > OTHER`.
+ *
+ * [NONE] is reported when [ReachabilityStatus.reachable] is `false`, or when
+ * the platform reports a usable path with an unrecognised interface type.
+ */
+public enum class Transport {
+    /** 802.11 Wi-Fi. */
+    Wifi,
+
+    /** Cellular (3G / 4G / 5G), or a personal hotspot tethered over cellular. */
+    Cellular,
+
+    /** Wired Ethernet, including USB/Thunderbolt Ethernet adapters on Apple. */
+    Ethernet,
+
+    /** Anything reachable but not Wi-Fi / cellular / Ethernet (loopback, virtual, unknown). */
+    Other,
+
+    /** No usable transport — paired with `reachable = false`. */
+    None,
+}
+
+/**
+ * Whether the active path is metered, and how aggressively the user wants to
+ * limit data usage on it.
+ *
+ * Apple's Network framework distinguishes "expensive" (cellular / hotspot) from
+ * "constrained" (the user has Low Data Mode active for this interface). Android
+ * distinguishes only metered / unmetered via
+ * `NET_CAPABILITY_NOT_METERED` and `NET_CAPABILITY_TEMPORARILY_NOT_METERED`,
+ * with no first-class equivalent of Low Data Mode.
+ *
+ * Consequence: on Android, [CONSTRAINED] is **never** emitted. Treating it as
+ * a stricter form of [METERED] is the right interpretation on Apple.
+ */
+public enum class Metering {
+    /** Unlimited data; prefetching, background sync, autoplay are all fine. */
+    Unmetered,
+
+    /** Cellular or hotspot; consider deferring large transfers to Wi-Fi. */
+    Metered,
+
+    /**
+     * Apple-only: user has enabled Low Data Mode for this interface. Apps
+     * should aggressively defer non-essential traffic. Never emitted on Android.
+     */
+    Constrained, ;
+
+    /**
+     * Does the metering represent a low data mode recommendation
+     */
+    val lowDataMode: Boolean
+        get() = this == Metered || this == Constrained
+}
+
+/**
+ * A snapshot of network reachability at a single point in time.
+ *
+ * Composition over a sealed hierarchy: the three axes (reachable / transport /
+ * metering) are independent, and exhaustive matching on each axis is cheap via
+ * SKIE-generated Swift enums. See [ReachabilityStatus.Unknown] for the
+ * pre-observation seed value.
+ *
+ * @property reachable Whether the device has a path to the public internet that
+ * has been *validated* (Android `NET_CAPABILITY_VALIDATED`) or is reported as
+ * `nw_path_status_satisfied` (Apple). Bare "interface up" is **not** sufficient
+ * — captive portals and DNS holes will set this to `false`.
+ * @property transport Which interface is carrying the active connection. See
+ * [Transport].
+ * @property metering Whether the active path is metered. See [Metering].
+ */
+public data class ReachabilityStatus(
+    val reachable: Boolean,
+    val transport: Transport,
+    val metering: Metering,
+) {
+    public companion object {
+        /**
+         * Pre-observation seed value. Emitted exactly once at the start of
+         * [Reachability.status], before either platform has reported a real
+         * reading. Equivalent to "we don't know yet, assume offline."
+         */
+        public val Unknown: ReachabilityStatus =
+            ReachabilityStatus(reachable = false, transport = Transport.None, metering = Metering.Unmetered)
+    }
+}
+
+/**
+ * Observable reachability handle — the only public type a consumer interacts
+ * with.
+ *
+ * ### Reading the current value (synchronous)
+ *
+ * ```kotlin
+ * val now: ReachabilityStatus = reachability.status.value
+ * ```
+ *
+ * From Swift, the same field reads through the SKIE-generated `StateFlow`
+ * wrapper:
+ *
+ * ```swift
+ * let now = reachability.status.value
+ * ```
+ *
+ * ### Reacting to changes (Flow / AsyncSequence)
+ *
+ * From Kotlin (Android, shared code):
+ *
+ * ```kotlin
+ * reachability.status.collect { status -> /* ... */ }
+ * ```
+ *
+ * From SwiftUI:
+ *
+ * ```swift
+ * .task {
+ *     for await status in reachability.status {
+ *         self.online = status.reachable
+ *     }
+ * }
+ * ```
+ *
+ * ### Lifecycle
+ *
+ * Construct one [Reachability] per process and inject the interface across
+ * shared code. Call [close] when the owning scope (an `Application`, an
+ * `@main` SwiftUI app's `init`, etc.) tears down. [close] is idempotent.
+ *
+ * Construction is platform-specific: see the top-level `Reachability()`
+ * factory in `appleMain` (no arguments) and the `Reachability(context:)`
+ * factory in `androidMain` (takes an Android `Context`).
+ */
+public interface Reachability : AutoCloseable {
+    /**
+     * The always-current reachability state. Emits [ReachabilityStatus.Unknown]
+     * on first collection, then the live state as soon as the platform
+     * reports it (typically within a few hundred milliseconds of construction).
+     *
+     * `StateFlow` semantics mean multiple collectors share one underlying
+     * platform observer, and a late-joining collector immediately receives
+     * the most recent value.
+     */
+    public val status: StateFlow<ReachabilityStatus>
+
+    /**
+     * Tear down the platform observer (Apple: `nw_path_monitor_cancel`;
+     * Android: `unregisterNetworkCallback`) and cancel the internal coroutine
+     * scope. Idempotent; subsequent calls are no-ops.
+     *
+     * After [close], [status] continues to expose its last value but will
+     * never emit again.
+     *
+     * Renames to `close()` in Swift via SKIE without an explicit `@ObjCName`
+     * — the method name already requires no mangling.
+     */
+    override fun close()
+}

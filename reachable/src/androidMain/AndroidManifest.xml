@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reachable — Android library manifest.
+
+  Declares the ACCESS_NETWORK_STATE permission so that ConnectivityManager
+  callbacks are allowed. The Android Manifest Merger pulls this into any
+  consuming app's manifest at build time, so consumers do not need to add
+  the permission themselves.
+
+  ACCESS_NETWORK_STATE is a normal-protection permission (not "dangerous"),
+  so no runtime grant is needed at any API level.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

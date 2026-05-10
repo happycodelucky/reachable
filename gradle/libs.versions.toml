@@ -1,0 +1,94 @@
+# =============================================================================
+# Reachable — single source of truth for dependency versions (CLAUDE.md §10).
+#
+# IMPORTANT (CLAUDE.md §2 / §12): before bumping any version, web-search the
+# latest stable. Versions in training data go stale fast. Stable only on `main`
+# (no EAP / RC / Beta). The Kotlin pin is bounded above by SKIE's supported
+# range — do not bump Kotlin past what SKIE supports.
+# =============================================================================
+
+[versions]
+
+# --- Toolchain --------------------------------------------------------------
+# Kotlin 2.3.20 is the highest version SKIE 0.10.11 supports. CLAUDE.md §8:
+# "If SKIE doesn't yet support a Kotlin version, we wait. Don't bump Kotlin
+# past SKIE's supported range." This pin is below the §2 nominal floor of
+# 2.3.21 by exactly that constraint.
+kotlin = "2.3.20"
+agp = "9.2.0"                  # com.android.kotlin.multiplatform.library variant (CLAUDE.md §2).
+skie = "0.10.11"               # Supports Kotlin 2.3.20.
+kmmbridge = "1.2.1"
+dokka = "2.0.0"                # Kotlin API doc generator; Dokka v2 task layout.
+
+# --- Android SDK ------------------------------------------------------------
+android-compile-sdk = "36"
+android-min-sdk = "30"         # arm64-v8a only (CLAUDE.md §1).
+jvm-target = "21"              # CLAUDE.md §2.
+
+# --- Apple deployment targets ----------------------------------------------
+ios-deployment-target = "18.0"
+macos-deployment-target = "15.0"
+
+# --- kotlinx ----------------------------------------------------------------
+kotlinx-coroutines = "1.10.2"
+kotlinx-atomicfu = "0.32.1"
+
+# --- Other libraries --------------------------------------------------------
+kermit = "2.0.8"
+
+# --- Sample-app deps (androidApp only — iOS / macOS samples consume via SPM) -
+androidx-activity-compose = "1.11.0"
+androidx-lifecycle-runtime-compose = "2.10.0"
+androidx-compose-bom = "2025.10.01"
+
+# --- Testing ----------------------------------------------------------------
+turbine = "1.2.1"
+
+# --- Lint ------------------------------------------------------------------
+ktlint = "1.8.0"               # The ktlint tool itself.
+ktlintGradle = "14.2.0"        # The org.jlleitschuh.gradle.ktlint Gradle plugin.
+detekt = "1.23.7"
+
+
+[libraries]
+
+# --- kotlinx ----------------------------------------------------------------
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinx-atomicfu" }
+
+# --- Other ------------------------------------------------------------------
+kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
+
+# --- Testing ----------------------------------------------------------------
+turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+
+# --- Sample-app deps --------------------------------------------------------
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle-runtime-compose" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidx-compose-bom" }
+# These come from the BOM — no version refs.
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+
+
+[plugins]
+
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+# Compose Compiler plugin shipped by Kotlin since 2.0; pin matches `kotlin`.
+# AGP 9.0+ ships Kotlin support built in, so no separate `kotlin.android` alias.
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+# Standard AGP application plugin for the Android sample app (separate from
+# the multiplatform-library variant used by :reachable).
+android-application = { id = "com.android.application", version.ref = "agp" }
+skie = { id = "co.touchlab.skie", version.ref = "skie" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+# kmmbridge-github is a superset of the core kmmbridge plugin in 1.2.x —
+# applying both produces a duplicate-extension error. This artifact contributes
+# `addGithubPackagesRepository()` plus `gitHubReleaseArtifacts()` on top of the
+# core plugin's mavenPublishArtifacts() / spm() / cocoapods() DSL.
+kmmbridge-github = { id = "co.touchlab.kmmbridge.github", version.ref = "kmmbridge" }

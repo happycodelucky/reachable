@@ -1,0 +1,82 @@
+/*
+ * Reachable — root build script.
+ *
+ * Plugins are declared here with `apply false`; they're applied in :reachable.
+ * This keeps `gradle/libs.versions.toml` as the single source of truth for
+ * versions (CLAUDE.md §10).
+ */
+
+plugins {
+    alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.android.kotlin.multiplatform.library) apply false
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.skie) apply false
+    alias(libs.plugins.ktlint) apply false
+    // KSP is not used in v1 (no Koin Annotations, no codegen). Add when needed.
+
+    // Dokka v2: Kotlin API doc generator. Produces HTML for the public API of
+    // every source set. The HTML is copied into docs/api/ for mkdocs to bundle.
+    alias(libs.plugins.dokka)
+}
+
+allprojects {
+    group = "com.happycodelucky.reachable"
+    // The in-tree version carries `-SNAPSHOT` and a `0` patch slot. Humans bump
+    // major/minor here and commit the change; the patch slot stays `0`. CI
+    // overrides this at build time via `-Pversion=...` to stamp ephemeral
+    // patches (run numbers for CI builds, exact `vX.Y.Z` for releases) without
+    // ever committing the override back.
+    version = providers.gradleProperty("version").getOrElse("0.1.0-SNAPSHOT")
+}
+
+subprojects {
+    // ktlint wires onto whichever Kotlin plugin is present. CLAUDE.md §3:
+    // "ktlint + detekt must pass."
+    pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+        apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    }
+
+    plugins.withId("org.jlleitschuh.gradle.ktlint") {
+        configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+            version.set(libs.versions.ktlint.get())
+            android.set(false)
+            outputToConsole.set(true)
+            ignoreFailures.set(false)
+            filter {
+                exclude { element -> element.file.path.contains("/build/generated/") }
+                exclude("**/build/**")
+                exclude("**/generated/**")
+            }
+        }
+
+        tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().configureEach {
+            exclude { element -> element.file.path.contains("/build/generated/") }
+        }
+    }
+}
+
+// Apply Dokka to the :reachable module and aggregate into docs/api/.
+dokka {
+    moduleName.set("Reachable")
+}
+
+dependencies {
+    // Aggregate Dokka HTML from :reachable into the root build (Dokka v2 pattern).
+    dokka(project(":reachable"))
+}
+
+/**
+ * Copies Dokka v2 HTML output into docs/api/, where mkdocs picks it up.
+ *
+ * The aggregated HTML lives at build/dokka/html after dokkaGeneratePublicationHtml.
+ * mkdocs looks at docs/api/ when it builds the site; CI runs Dokka before mkdocs.
+ */
+tasks.register<Copy>("copyDokkaToDocs") {
+    group = "documentation"
+    description = "Copies aggregated Dokka HTML into docs/api/ for mkdocs."
+
+    dependsOn("dokkaGeneratePublicationHtml")
+    from(layout.buildDirectory.dir("dokka/html"))
+    into(layout.projectDirectory.dir("docs/api"))
+}

@@ -1,0 +1,51 @@
+# Reachable — iOSApp sample (Xcode project spec for `xcodegen`).
+#
+# Run `xcodegen generate` (or `make` from this directory if you have one) to
+# emit `iOSApp.xcodeproj` from this spec. The .xcodeproj is gitignored so the
+# spec is the single source of truth.
+#
+# The app declares a local Swift Package dependency at `../`, which points at
+# the root `Package.swift` written by `./gradlew :reachable:spmDevBuild`. Xcode
+# re-reads the binary XCFramework on every open, so iOS engineers iterate by
+# re-running spmDevBuild and rebuilding the app — no Gradle inside Xcode.
+
+name: iOSApp
+
+options:
+  bundleIdPrefix: com.happycodelucky.reachable.example
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+
+# Local SPM dependency on the Reachable package generated at the repo root by
+# `./gradlew :reachable:spmDevBuild`. Path is relative to the .xcodeproj.
+packages:
+  Reachable:
+    path: ../
+
+targets:
+  iOSApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: iOSApp
+    info:
+      path: iOSApp/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        CFBundleDisplayName: Reachable
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.happycodelucky.reachable.example.ios
+        SWIFT_VERSION: "5.10"
+        TARGETED_DEVICE_FAMILY: "1,2"  # iPhone + iPad
+        ENABLE_PREVIEWS: "YES"
+        # Code signing left to "automatic" — anyone running locally signs with
+        # their personal team. CI won't run this target.
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - package: Reachable
