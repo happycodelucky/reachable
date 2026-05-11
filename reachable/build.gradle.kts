@@ -207,7 +207,24 @@ addGithubPackagesRepository()
 
 kmmbridge {
     // Push the XCFramework zip to the Maven repo registered above.
-    mavenPublishArtifacts()
+    //
+    // `repository = "GitHubPackages"` is REQUIRED because the Vanniktech
+    // `maven-publish` plugin (the `mavenPublishing { }` block below) also
+    // registers a `mavenCentral` MavenArtifactRepository. KMMBridge's
+    // `MavenPublishArtifactManager.findArtifactRepository()` defaults to
+    // `repositories.firstOrNull()` and would otherwise pick whichever repo
+    // happens to be registered first (order is non-deterministic across
+    // Gradle versions). On the macos-latest runner with kmmbridge 1.2.1 +
+    // vanniktech that resolves to `mavenCentral`, whose URL is computed
+    // lazily from `mavenCentralUsername` / `mavenCentralPassword` and
+    // returns null at config time when those creds aren't on the current
+    // task's env (they're only set on the *Publish to Maven Central* step).
+    // The resulting NPE — `Cannot invoke "java.net.URI.toString()" because
+    // the return value of "MavenArtifactRepository.getUrl()" is null` —
+    // aborts the whole publish step. Pinning the repo name removes the
+    // ambiguity. Name must match `addGithubPackagesRepository()` above,
+    // which sets `name = "GitHubPackages"`.
+    mavenPublishArtifacts(repository = "GitHubPackages")
 
     // Generate Package.swift at the repo root (KMMBridge's default location).
     // The release workflow commits it back to main on each release; SPM
@@ -249,9 +266,13 @@ kmmbridge {
 //      add `mavenCentral()` and resolve normally; no credentials required on
 //      the consumer side.
 //
-// The two channels don't conflict: each plugin registers its own Maven
-// repository (`GitHubPackages` vs. `mavenCentral`) and exposes its own
-// umbrella publish task. The release workflow calls them sequentially.
+// The two channels coexist but they DO share `PublishingExtension.repositories`.
+// Both plugins register a `MavenArtifactRepository` (`GitHubPackages` from
+// `addGithubPackagesRepository()`, `mavenCentral` from vanniktech) on the
+// same collection. KMMBridge enumerates that collection at config time and
+// would pick the wrong one without the explicit `repository = "GitHubPackages"`
+// pin in the `kmmbridge { }` block above. The release workflow calls each
+// plugin's umbrella task sequentially.
 //
 // Reading credentials: vanniktech reads `mavenCentralUsername`,
 // `mavenCentralPassword`, `signingInMemoryKey`, and
