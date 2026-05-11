@@ -44,6 +44,11 @@ kotlinx-atomicfu = "0.32.1"
 
 # --- Other libraries --------------------------------------------------------
 kermit = "2.0.8"
+# androidx.startup — lets the library auto-attach its `Reachability.shared`
+# singleton during the InitializationProvider ContentProvider pass, before
+# Application.onCreate. Tiny dep (~6 KB), shipped as an `implementation` of
+# :reachable so consumers don't need to add it themselves.
+androidx-startup = "1.2.0"
 
 # --- Sample-app deps (androidApp only — iOS / macOS samples consume via SPM) -
 androidx-activity-compose = "1.11.0"
@@ -69,6 +74,9 @@ kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "k
 
 # --- Other ------------------------------------------------------------------
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
+# androidx.startup runtime — consumed in :reachable's androidMain to host the
+# bundled `ReachabilityInitializer`. See `androidx-startup` version above.
+androidx-startup-runtime = { module = "androidx.startup:startup-runtime", version.ref = "androidx-startup" }
 
 # --- Testing ----------------------------------------------------------------
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }

@@ -1,16 +1,17 @@
 /*
  * Reachable — Android sample app.
  *
- * One screen, one observable: subscribes to `reachability.status` via
- * `collectAsStateWithLifecycle()` and renders the live ReachabilityStatus.
- * Toggle airplane mode or switch between Wi-Fi and cellular to see
- * transitions arrive in real time.
+ * One screen, one observable: subscribes to `Reachability.shared.status`
+ * via `collectAsStateWithLifecycle()` and renders the live
+ * ReachabilityStatus. Toggle airplane mode or switch between Wi-Fi and
+ * cellular to see transitions arrive in real time.
  *
- * The Reachability instance is built once with `remember(context)` against
- * the application context (avoids leaking the activity) and never explicitly
- * closed — the OS reaps the process on app exit. A real production app
- * would hoist construction into `Application.onCreate()` and call
- * `reachability.close()` in `onTerminate()`.
+ * No construction, no Context plumbing: `Reachability.shared` is the
+ * process-lifetime singleton, attached to the application Context by the
+ * library's bundled `androidx.startup` initializer before
+ * `Application.onCreate`. Calling `close()` on it would be a no-op (see
+ * `Reachability.shared`'s KDoc); the OS reaps the platform observer at
+ * process exit.
  */
 package com.happycodelucky.reachable.example.android
 
@@ -26,10 +27,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,11 +51,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun ReachabilityScreen() {
-    val context = LocalContext.current
-    // Construct once per recomposition lifetime; rebuilt only if the Context
-    // identity changes (it won't, in practice).
-    val reachability = remember(context) { Reachability(context) }
-    val status by reachability.status.collectAsStateWithLifecycle()
+    // No `remember` needed — `Reachability.shared` is the process-lifetime
+    // singleton, attached to the application Context by the library's
+    // bundled `androidx.startup` initializer before `Application.onCreate`.
+    val status by Reachability.shared.status.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

@@ -2,7 +2,51 @@
 
 SKIE bridges `StateFlow<T>` as `AsyncSequence<T>`, so the integration is a
 single `for await` loop. Wrap that in an `@MainActor`
-`ObservableObject` view-model and bind from a SwiftUI view:
+`ObservableObject` view-model and bind from a SwiftUI view.
+
+## With `Reachability.shared` (recommended)
+
+`Reachability.shared` is the process-lifetime singleton — no factory call,
+no `deinit` close needed:
+
+```swift
+import SwiftUI
+import Reachable
+
+@MainActor
+final class ConnectivityModel: ObservableObject {
+    @Published var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
+    private var observationTask: Task<Void, Never>?
+
+    init() {
+        // Reachability.shared starts observing eagerly on first access.
+        // No close() needed — the singleton lives for the process.
+        let reachability: any Reachability = Reachability.shared
+        observationTask = Task { [weak self] in
+            for await value in reachability.status {
+                self?.status = value
+            }
+        }
+    }
+
+    deinit { observationTask?.cancel() }
+}
+
+struct ConnectivityBanner: View {
+    @StateObject var model: ConnectivityModel = ConnectivityModel()
+
+    var body: some View {
+        if !model.status.reachable {
+            Label("Offline", systemImage: "wifi.slash")
+                .foregroundStyle(.red)
+        }
+    }
+}
+```
+
+## With an injected instance (explicit lifecycle)
+
+For tests or when you need a fresh observer with explicit teardown:
 
 ```swift
 import SwiftUI
@@ -44,7 +88,7 @@ struct ConnectivityBanner: View {
 }
 ```
 
-From a parent view:
+From a parent view using the explicit-lifecycle factory:
 
 ```swift
 @main

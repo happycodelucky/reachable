@@ -7,6 +7,7 @@
  */
 package com.happycodelucky.reachable
 
+import com.happycodelucky.reachable.internal.SharedReachabilityHolder
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -140,13 +141,14 @@ public data class ReachabilityStatus(
  *
  * ### Lifecycle
  *
- * Construct one [Reachability] per process and inject the interface across
- * shared code. Call [close] when the owning scope (an `Application`, an
- * `@main` SwiftUI app's `init`, etc.) tears down. [close] is idempotent.
+ * The recommended entry point is [Reachability.shared] — a process-lifetime
+ * singleton that requires no construction or Context plumbing. See
+ * [companion object][Reachability.Companion.shared] for semantics.
  *
- * Construction is platform-specific: see the top-level `Reachability()`
- * factory in `appleMain` (no arguments) and the `Reachability(context:)`
- * factory in `androidMain` (takes an Android `Context`).
+ * For explicit-lifecycle use (tests, per-feature observers), use the
+ * platform factories: `Reachability()` in `appleMain` (no arguments) and
+ * `Reachability(context:)` in `androidMain` (takes an Android `Context`).
+ * Call [close] when the owning scope tears down. [close] is idempotent.
  */
 public interface Reachability : AutoCloseable {
     /**
@@ -215,4 +217,45 @@ public interface Reachability : AutoCloseable {
      * — the method name already requires no mangling.
      */
     override fun close()
+
+    public companion object {
+        /**
+         * Process-lifetime singleton handle. The recommended entry point
+         * for most consumers — eliminates "did I construct Reachability
+         * early enough?" bugs by being callable from anywhere at any
+         * time, including before `Application.onCreate` on Android.
+         *
+         * **Apple (iOS / macOS)**: on first access, constructs an
+         * [Reachability] backed by `nw_path_monitor` and starts observing
+         * eagerly. Subsequent accesses return the same instance. There is
+         * no Context dependency on Apple — the monitor is self-contained.
+         *
+         * **Android**: on first access, returns an unattached instance
+         * whose [status] is [ReachabilityStatus.Unknown]. The library's
+         * bundled `androidx.startup` initializer attaches it to the
+         * application Context during the `InitializationProvider`
+         * ContentProvider pass — *before* `Application.onCreate`. Once
+         * attached, the instance begins emitting real
+         * [ReachabilityStatus] values.
+         *
+         * Collectors started before attach receive [ReachabilityStatus.Unknown]
+         * as their first value and then the live state as soon as the
+         * platform reports it. `StateFlow` semantics guarantee a
+         * late-joining collector immediately receives the most recent
+         * value, so there is no race between subscribing and the platform
+         * coming online.
+         *
+         * Calling [close] on this instance is an intentional **no-op** —
+         * the singleton's lifetime is the process, and the OS reaps the
+         * platform observer at process exit on both platforms. Code that
+         * needs explicit lifecycle should use the `Reachability(context)`
+         * / `Reachability()` top-level factories instead, which return a
+         * fresh observer per call and honour [close] normally.
+         *
+         * From Swift, renders as `Reachability.shared` via SKIE's
+         * interface-companion bridging.
+         */
+        public val shared: Reachability
+            get() = SharedReachabilityHolder.instance
+    }
 }

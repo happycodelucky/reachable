@@ -5,7 +5,32 @@ API via Kotlin/Native cinterop. The same code path covers iPadOS and
 macOS; both Apple platforms share the `appleMain` source set in
 `:reachable`.
 
-## Construction
+## Singleton entry point — `Reachability.shared`
+
+The recommended way to access reachability from Swift on iOS or iPadOS:
+
+```swift
+import Reachable
+
+let reachability: any Reachability = Reachability.shared
+```
+
+`Reachability.shared` is a process-lifetime singleton. On first access,
+it constructs an `nw_path_monitor`-backed observer and starts it eagerly.
+Subsequent accesses return the same instance.
+
+The Swift `Reachability.shared` property is provided by an in-framework
+Swift extension (`src/appleMain/swift/Reachability+Shared.swift`), which
+SKIE auto-discovers and compiles into the `Reachable` module. Consumers
+don't need any additional configuration — `Reachability.shared` just
+works.
+
+Calling `close()` on `Reachability.shared` is an intentional no-op — the
+singleton's lifetime is the process.
+
+## Explicit-lifecycle factory
+
+For tests or per-feature observers:
 
 ```swift
 import Reachable

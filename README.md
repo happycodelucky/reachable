@@ -20,10 +20,15 @@ internet and lets you observe changes as they happen, behind one API:
   so captive portals correctly register as not reachable.
 
 UI is out of scope — Reachable is the headless `:reachable` KMP module
-(CLAUDE.md §1). Each platform app consumes it natively. The library uses
-constructor injection internally and asymmetric platform factories
-(Apple takes nothing, Android takes a `Context`), so any DI graph you
-already use plugs in cleanly.
+(CLAUDE.md §1). Each platform app consumes it natively.
+
+`Reachability.shared` is the recommended entry point: a process-lifetime
+singleton with no Context plumbing. On Android, the library's bundled
+`androidx.startup` initializer attaches it before `Application.onCreate`.
+On Apple, first access constructs the `nw_path_monitor` eagerly and starts
+observing immediately. The explicit-lifecycle factories
+(`Reachability(context)` / `Reachability()`) remain available for tests
+and any code that wants per-instance teardown.
 
 ARM-only targets: `iosArm64`, `iosSimulatorArm64`, `macosArm64`, Android
 `arm64-v8a`. SKIE bridges the Swift surface — enums become exhaustive
@@ -60,15 +65,31 @@ Highlights:
 ## Quick example
 
 ```kotlin
-val reachability: Reachability = Reachability(context) // or Reachability() on Apple
+// Singleton path — no Context plumbing, no construction boilerplate.
+val reachability: Reachability = Reachability.shared
 if (reachability.isReachable) {
     // online
 }
 reachability.status.collect { status ->
     // every state change
 }
+// close() on .shared is a no-op — the singleton lives for the process.
+```
 
-reachability.close() // tear down on app exit
+From Swift:
+
+```swift
+let reachability: any Reachability = Reachability.shared
+```
+
+For explicit-lifecycle needs (tests, per-feature observers):
+
+```kotlin
+// Android
+val r: Reachability = Reachability(applicationContext)
+// Apple
+val r: any Reachability = Reachability()
+r.close() // honours close() normally
 ```
 
 `status.value` for a synchronous read, `status.collect {}` for a reactive
@@ -78,11 +99,36 @@ listener, `status.first()` for a one-shot suspend.
 
 ## Launch sequence — Apple (iOS, iPadOS, macOS)
 
-The same `appleMain` factory covers all three platforms.
+The same `appleMain` factory covers all three platforms. Use
+`Reachability.shared` for zero-setup access:
 
 ```swift
 import Reachable
 
+@MainActor
+@Observable
+final class ConnectivityModel {
+    var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
+
+    @ObservationIgnored
+    private var task: Task<Void, Never>?
+
+    init() {
+        // Reachability.shared — process-lifetime singleton, no close needed.
+        let reachability: any Reachability = Reachability.shared
+        task = Task { [weak self] in
+            for await s in reachability.status { self?.status = s }
+        }
+    }
+
+    deinit { task?.cancel() }
+}
+```
+
+For explicit-lifecycle code (tests or per-feature observers), use the
+top-level factory and call `close()` on teardown:
+
+```swift
 @main
 struct MyApp: App {
     private let reachability: any Reachability = Reachability()
@@ -94,26 +140,6 @@ struct MyApp: App {
         }
     }
 }
-
-@MainActor
-@Observable
-final class ConnectivityModel {
-    var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
-
-    @ObservationIgnored
-    private let reachability: any Reachability
-    @ObservationIgnored
-    private var task: Task<Void, Never>?
-
-    init(reachability: any Reachability) {
-        self.reachability = reachability
-        task = Task { [weak self] in
-            for await s in reachability.status { self?.status = s }
-        }
-    }
-
-    deinit { task?.cancel(); reachability.close() }
-}
 ```
 
 `nw_path_monitor` doesn't require any entitlement. The `network.client`
@@ -124,12 +150,28 @@ the reachability check.
 
 ## Launch sequence — Android
 
-`Application.onCreate` constructs Reachability against the application
-context once, and the rest of the app injects the interface:
+The library bundles an `androidx.startup` initializer that attaches
+`Reachability.shared` to the application `Context` automatically during
+the `InitializationProvider` ContentProvider pass — before
+`Application.onCreate`. No setup required:
 
 ```kotlin
 import com.happycodelucky.reachable.Reachability
 
+// No Application subclass, no Context plumbing needed.
+@Composable
+fun ConnectivityBanner() {
+    val status by Reachability.shared.status.collectAsStateWithLifecycle()
+    if (!status.reachable) {
+        Text("You're offline")
+    }
+}
+```
+
+If you disable `InitializationProvider` entirely (rare), or need explicit
+lifecycle control, use the factory instead:
+
+```kotlin
 class MyApp : Application() {
     lateinit var reachability: Reachability
 
@@ -148,18 +190,6 @@ class MyApp : Application() {
 `android.permission.ACCESS_NETWORK_STATE` is declared in the library's own
 `AndroidManifest.xml` and merged into your app at build time. It's a
 normal-protection permission, so no runtime grant is needed.
-
-In Compose:
-
-```kotlin
-@Composable
-fun ConnectivityBanner(reachability: Reachability) {
-    val status by reachability.status.collectAsStateWithLifecycle()
-    if (!status.reachable) {
-        Text("You're offline")
-    }
-}
-```
 
 ---
 
@@ -244,8 +274,10 @@ and [`macOSApp/README.md`](./macOSApp/README.md).
   awkward, `@Throws` on every `suspend fun` that can throw across the
   boundary.
 - `internal` by default; widen visibility only when needed (CLAUDE.md §3).
-- DI is a user choice. The library uses constructor injection internally
-  and asymmetric platform factories; no DI container is required.
+- DI is a user choice. The primary entry point is `Reachability.shared`
+  (zero-setup singleton). For tests or explicit lifecycle, the asymmetric
+  platform factories (`Reachability(context)` / `Reachability()`) are also
+  public. No DI container is required by the library.
 
 See [`CLAUDE.md`](./CLAUDE.md) for the full project conventions.
 

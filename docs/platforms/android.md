@@ -4,7 +4,66 @@ The Android implementation wraps `ConnectivityManager.NetworkCallback`
 registered against a `NetworkRequest` that requires both
 `NET_CAPABILITY_INTERNET` and `NET_CAPABILITY_VALIDATED`.
 
-## Construction
+## Singleton entry point — `Reachability.shared`
+
+The recommended way to access reachability from Android code:
+
+```kotlin
+import com.happycodelucky.reachable.Reachability
+
+val reachability: Reachability = Reachability.shared
+```
+
+`Reachability.shared` returns a process-lifetime singleton. On Android,
+the library's bundled `ReachabilityInitializer` (an
+`androidx.startup.Initializer`) runs during the
+`InitializationProvider` ContentProvider pass — before
+`Application.onCreate` — and attaches the singleton to the application
+`Context`. After attach, `status` emits live values.
+
+`status.value` is `ReachabilityStatus.Unknown` between first access and
+the initializer's first run. Collectors started before attach receive
+`Unknown` first and then live values; `StateFlow` late-joiner semantics
+make this race-free.
+
+Calling `close()` on `Reachability.shared` is an intentional no-op —
+the singleton's lifetime is the process.
+
+### Manifest merger
+
+The library's `AndroidManifest.xml` registers `ReachabilityInitializer`
+under `InitializationProvider` with `tools:node="merge"`:
+
+```xml
+<provider
+    android:name="androidx.startup.InitializationProvider"
+    android:authorities="${applicationId}.androidx-startup"
+    android:exported="false"
+    tools:node="merge">
+    <meta-data
+        android:name="com.happycodelucky.reachable.ReachabilityInitializer"
+        android:value="androidx.startup" />
+</provider>
+```
+
+`tools:node="merge"` unions the `<meta-data>` children from all libraries
+(WorkManager, Profile Installer, etc.) into a single
+`InitializationProvider` entry. No extra manifest work is needed in
+consumer apps.
+
+### Disabled InitializationProvider
+
+If your app removes `InitializationProvider` entirely
+(`tools:node="remove"` on the provider), the auto-attach won't run and
+`Reachability.shared.status` will remain `Unknown` indefinitely. In that
+case, either re-enable startup and let this initializer run, or stop
+using `Reachability.shared` and use the explicit-lifecycle factory
+described below.
+
+## Explicit-lifecycle factory
+
+For tests, per-feature observers, or when `InitializationProvider` is
+disabled:
 
 ```kotlin
 import com.happycodelucky.reachable.Reachability
@@ -90,8 +149,18 @@ alive in the background.
 ## Multi-process apps
 
 Android apps with `android:process=":foo"` services run each process
-isolated. Each process must construct its own `Reachability`;
-`ConnectivityManager` registrations don't cross process boundaries.
+isolated. `ConnectivityManager` registrations don't cross process
+boundaries.
+
+`Reachability.shared` is attached per-process: the
+`InitializationProvider` runs once in each process that has a
+`ContentProvider` declaration. A separate `:foo` process gets its own
+`shared` singleton, attached (if the process hosts a
+`ContentProvider`) during that process's startup pass.
+
+If the separate process does not host a `ContentProvider` and
+`InitializationProvider` doesn't run there, use the explicit-lifecycle
+factory `Reachability(context)` instead.
 
 Rare in modern Compose-shaped apps, but worth knowing if you have a
 long-running service in a separate process.
