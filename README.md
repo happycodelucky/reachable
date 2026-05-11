@@ -7,6 +7,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/happycodelucky/reachable/ci.yml?style=for-the-badge&label=ci)](https://github.com/happycodelucky/reachable/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/happycodelucky/reachable/docs.yml?style=for-the-badge&label=docs)](https://github.com/happycodelucky/reachable/actions/workflows/docs.yml)
 [![Release](https://img.shields.io/github/v/release/happycodelucky/reachable?style=for-the-badge)](https://github.com/happycodelucky/reachable/releases/latest)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](./LICENSE)
 
 A Kotlin Multiplatform library that tells you whether the device is on the
 internet and lets you observe changes as they happen, behind one API:
@@ -279,3 +280,23 @@ and [`macOSApp/README.md`](./macOSApp/README.md).
   public. No DI container is required by the library.
 
 See [`CLAUDE.md`](./CLAUDE.md) for the full project conventions.
+
+## License
+
+Reachable is released under the [Apache License 2.0](./LICENSE).
+
+```
+Copyright 2026 Paul Bates
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```

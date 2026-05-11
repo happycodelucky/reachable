@@ -98,3 +98,10 @@ from `mkdocs.yml`, every recipe has at least one code block.
 
 CI runs the full pipeline (build, test, XCFramework assembly, docs build,
 docs validation) on every PR.
+
+## Releasing
+
+Cutting a release publishes simultaneously to GitHub Packages (XCFramework
+zip for SPM) and Maven Central (Android AAR + KMP metadata). The mechanics,
+one-time credential setup, and rotation procedure live in
+[Publishing](publishing.md).
