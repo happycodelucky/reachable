@@ -59,7 +59,7 @@ jobs:
       #   1. Builds Reachable.xcframework via assembleReachableXCFramework.
       #   2. Zips it and publishes the zip + .module metadata to GitHub Packages
       #      (the maven-publish + addGithubPackagesRepository wiring in
-      #      reachable/build.gradle.kts handles auth via GITHUB_TOKEN).
+      #      reachable/build.gradle.kts handles auth via GITHUB_PUBLISH_TOKEN).
       #   3. Generates Package.swift at the repo root pointing SPM at the zip
       #      via URL + sha256.
       #   4. Commits Package.swift and pushes the version tag back to origin.
@@ -67,6 +67,18 @@ jobs:
       # `kmmBridgePublish` is the umbrella task that runs all of the above. The
       # `-Pversion=...` override drives the Maven coordinate version, the
       # SwiftPackage version, and the git tag.
+      #
+      # Two non-obvious requirements (kmmbridge 1.2.1):
+      #   * `-PENABLE_PUBLISHING=true` — KMMBridge only registers the
+      #     `kmmBridgePublish` task inside an afterEvaluate block gated on this
+      #     property. Without it the task does not exist and gradle errors out
+      #     with "task 'kmmBridgePublish' not found in project ':reachable'".
+      #     Passed on the CI command line only (not in gradle.properties) so
+      #     local builds stay lean and can never accidentally publish.
+      #   * `GITHUB_REPO` — `addGithubPackagesRepository()` reads this exact
+      #     property/env name (NOT the GHA-standard `GITHUB_REPOSITORY`) and
+      #     silently returns without registering a Maven repo if it's absent,
+      #     which would later surface as "Artifact repository not found".
       - name: Publish via KMMBridge
         env:
           # `gh` CLI calls below need the standard GITHUB_TOKEN.
@@ -76,9 +88,15 @@ jobs:
           # the workflow-level `permissions: packages: write` grants it.
           GITHUB_PUBLISH_USER: ${{ github.actor }}
           GITHUB_PUBLISH_TOKEN: ${{ github.token }}
+          # `addGithubPackagesRepository()` reads `GITHUB_REPO` (kmmbridge's
+          # own name), not the GHA-standard `GITHUB_REPOSITORY`. Without this,
+          # the helper early-returns and no Maven repo gets registered.
+          GITHUB_REPO: ${{ github.repository }}
         run: |
           ./gradlew :reachable:kmmBridgePublish \
-            -Pversion=${{ inputs.version }} --no-daemon
+            -Pversion=${{ inputs.version }} \
+            -PENABLE_PUBLISHING=true \
+            --no-daemon
 
       # Maven Central upload via the vanniktech plugin. Runs AFTER KMMBridge
       # because Central uploads are slow and irreversible — a released

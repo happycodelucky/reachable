@@ -179,11 +179,30 @@ skie {
 //   4. iOS / macOS consumers add `https://github.com/happycodelucky/reachable.git`
 //      as an SPM dependency and pin to a tag.
 //
-// `addGithubPackagesRepository()` (from co.touchlab.kmmbridge.github) registers
-// `https://maven.pkg.github.com/<owner>/<repo>` as a Maven publishing target,
-// reading `GITHUB_PUBLISH_USER` (default `cirunner`) and `GITHUB_PUBLISH_TOKEN`
-// from the environment. The release workflow sets both. The repo slug is
-// auto-detected from the local git remote at config time.
+// Publishing is CI-only and gated by two inputs that .github/workflows/
+// release.yml provides — both must be present or `kmmBridgePublish` either
+// won't exist or won't have a target repo:
+//
+//   * Gradle property `ENABLE_PUBLISHING=true` — KMMBridge 1.2.x only
+//     registers the `kmmBridgePublish` umbrella task when this is set.
+//     Without it, `./gradlew :reachable:tasks --all` will not list it.
+//     Kept off by default so local builds skip the publish wiring entirely.
+//   * `GITHUB_REPO` (env var or -P) — `addGithubPackagesRepository()` below
+//     reads this exact name (NOT the standard `GITHUB_REPOSITORY` GHA sets)
+//     to build `https://maven.pkg.github.com/<owner>/<repo>`. If it's
+//     missing, the helper silently early-returns and no Maven repo is
+//     registered, which later surfaces as "Artifact repository not found,
+//     please, specify maven repository" during publish.
+//
+// `addGithubPackagesRepository()` (from co.touchlab.kmmbridge.github) also
+// reads `GITHUB_PUBLISH_USER` (default `cirunner`) and `GITHUB_PUBLISH_TOKEN`
+// from the environment for auth. The release workflow sets all three.
+//
+// To reproduce the publish wiring locally for inspection (no real publish):
+//   ./gradlew :reachable:tasks --all \
+//       -PENABLE_PUBLISHING=true \
+//       -PGITHUB_REPO=happycodelucky/reachable \
+//       -PGITHUB_PUBLISH_TOKEN=dummy
 addGithubPackagesRepository()
 
 kmmbridge {
