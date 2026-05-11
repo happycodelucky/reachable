@@ -148,6 +148,10 @@ description = "Strict mkdocs build — what CI runs."
 depends = ["docs:dokka", "docs:check"]
 run = "mkdocs build --strict"
 
+[tasks."docs:build:only"]
+description = "Strict mkdocs build, assuming docs:dokka + docs:check already ran (CI uses this)."
+run = "mkdocs build --strict"
+
 # --- housekeeping ----------------------------------------------------------
 
 [tasks.clean]

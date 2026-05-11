@@ -48,12 +48,11 @@ jobs:
       - name: Validate docs structure
         run: mise run docs:check
 
-      # NOTE: `mise run docs:build` would re-run docs:dokka + docs:check via
-      # its dependency chain. We run them as separate steps above for GH
-      # Actions log readability; here we invoke mkdocs directly to avoid
-      # double work.
+      # docs:build runs docs:dokka + docs:check via its dependency chain;
+      # we ran them as separate steps above for GH Actions log readability,
+      # so call docs:build:only here to skip the duplicate work.
       - name: Build site
-        run: mkdocs build --strict
+        run: mise run docs:build:only
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
