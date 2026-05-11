@@ -25,6 +25,13 @@ plugins {
     // includes the core extension plus the `addGithubPackagesRepository()`
     // helper that registers GitHub Packages as a Maven repo.
     alias(libs.plugins.kmmbridge.github)
+    // Vanniktech Maven Publish (CLAUDE.md §9) — publishes signed artifacts to
+    // the Sonatype Central Portal. Applies `maven-publish` and `signing`
+    // transitively (so the bare `maven-publish` above is harmless duplication
+    // but kept for readability and to anchor the KMMBridge dependency). The
+    // `mavenPublishing { }` block below configures the Central Portal target,
+    // POM metadata, and in-memory GPG signing.
+    alias(libs.plugins.maven.publish)
 }
 
 kotlin {
@@ -200,4 +207,88 @@ kmmbridge {
     // .getOrElse("0.1.0-SNAPSHOT")`, so `-Pversion=0.1.0` from the release
     // workflow drives both the Maven coordinate version, the SwiftPackage
     // version, and the git tag in one step.
+}
+
+// --- Maven Central publishing (CLAUDE.md §9) ---------------------------------
+//
+// Two distribution channels run in parallel from this module:
+//
+//   1. GitHub Packages (KMMBridge, above) — hosts the XCFramework zip. SPM
+//      consumers fetch it via the generated Package.swift. The zip is
+//      attached as an additional artifact to the KMP `kotlinMultiplatform`
+//      publication; KMMBridge's `kmmBridgePublish` task uploads it.
+//
+//   2. Maven Central (this block) — hosts the Android AAR, KMP common
+//      metadata, per-target klibs (iosArm64, iosSimulatorArm64, macosArm64,
+//      android), and their sources/javadoc jars. Android/JVM/KMP consumers
+//      add `mavenCentral()` and resolve normally; no credentials required on
+//      the consumer side.
+//
+// The two channels don't conflict: each plugin registers its own Maven
+// repository (`GitHubPackages` vs. `mavenCentral`) and exposes its own
+// umbrella publish task. The release workflow calls them sequentially.
+//
+// Reading credentials: vanniktech reads `mavenCentralUsername`,
+// `mavenCentralPassword`, `signingInMemoryKey`, and
+// `signingInMemoryKeyPassword` as Gradle properties, which Gradle
+// auto-populates from `ORG_GRADLE_PROJECT_*` env vars in CI. The release
+// workflow wires the four GitHub Actions secrets to those env names. Locally,
+// these properties are unset and signing is silently skipped (which is fine
+// for `publishToMavenLocal` dry-runs).
+mavenPublishing {
+    // SonatypeHost.CENTRAL_PORTAL targets the new central.sonatype.com
+    // endpoint. Do NOT use SonatypeHost.DEFAULT — that's the legacy
+    // s01.oss.sonatype.org OSSRH endpoint, which Sonatype is decommissioning.
+    // `automaticRelease = true` makes `publishAndReleaseToMavenCentral` a
+    // single-shot build + sign + upload + close + release task. Without it,
+    // artifacts land in a "validated" state on the Portal and require a
+    // manual "Publish" click in the web UI.
+    publishToMavenCentral(automaticRelease = true)
+
+    // Required by Central — every artifact (jar, aar, klib, module, pom)
+    // must carry a detached GPG signature next to it. signAllPublications()
+    // applies the signing plugin across every publication the project
+    // exposes, including KMMBridge's XCFramework-zip artifact on the
+    // kotlinMultiplatform publication. Central rejects unsigned uploads.
+    signAllPublications()
+
+    // The coordinate triple. groupId here intentionally matches the
+    // namespace claimed on the Central Portal (`com.happycodelucky`); the
+    // root build.gradle.kts wires `group = "com.happycodelucky.reachable"`
+    // and we mirror that here for the artifact suffix.
+    coordinates(
+        groupId = "com.happycodelucky.reachable",
+        artifactId = "reachable",
+        version = project.version.toString(),
+    )
+
+    pom {
+        name.set("Reachable")
+        description.set(
+            "Kotlin Multiplatform reachability and network-path monitoring " +
+                "for iOS, macOS, and Android.",
+        )
+        url.set("https://github.com/happycodelucky/reachable")
+        inceptionYear.set("2026")
+
+        licenses {
+            license {
+                name.set("Apache License 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                distribution.set("repo")
+            }
+        }
+        developers {
+            developer {
+                id.set("happycodelucky")
+                name.set("Paul Bates")
+                url.set("https://github.com/happycodelucky")
+            }
+        }
+        scm {
+            url.set("https://github.com/happycodelucky/reachable")
+            connection.set("scm:git:https://github.com/happycodelucky/reachable.git")
+            developerConnection.set("scm:git:ssh://git@github.com/happycodelucky/reachable.git")
+        }
+    }
 }

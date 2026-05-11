@@ -80,6 +80,43 @@ jobs:
           ./gradlew :reachable:kmmBridgePublish \
             -Pversion=${{ inputs.version }} --no-daemon
 
+      # Maven Central upload via the vanniktech plugin. Runs AFTER KMMBridge
+      # because Central uploads are slow and irreversible — a released
+      # version on the Central Portal is permanent (Sonatype never deletes
+      # published artifacts). Publishing to GitHub Packages first means SPM
+      # consumers already have what they need even if this step fails.
+      #
+      # `publishAndReleaseToMavenCentral` = build + sign + upload to the
+      # Central Portal staging area + close the deployment + release it for
+      # public consumption, all in one task (because `automaticRelease =
+      # true` is set in the `mavenPublishing { }` block).
+      #
+      # This task only knows about the `mavenCentral` repository vanniktech
+      # registered. KMMBridge's GitHub Packages repository is invisible to
+      # it, so there's no cross-contamination — the AAR / klibs / metadata
+      # go to Central; the XCFramework zip is already on GitHub Packages
+      # from the step above.
+      #
+      # Snapshot versions (anything ending in `-SNAPSHOT`) auto-route to the
+      # Central Portal snapshots endpoint; no branch in CI needed.
+      - name: Publish to Maven Central
+        env:
+          # Vanniktech reads these four properties; Gradle auto-populates
+          # them from ORG_GRADLE_PROJECT_* env vars. The four GitHub Actions
+          # secrets are configured under Settings → Secrets and variables →
+          # Actions (see docs/publishing.md).
+          ORG_GRADLE_PROJECT_mavenCentralUsername:       ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword:       ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          # In-memory GPG key: paste the full ASCII-armoured private key
+          # block (`-----BEGIN PGP PRIVATE KEY BLOCK-----` … `-----END PGP
+          # PRIVATE KEY BLOCK-----`) into the GitHub secret. No keyring on
+          # the runner; vanniktech imports the key in-process.
+          ORG_GRADLE_PROJECT_signingInMemoryKey:         ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
+        run: |
+          ./gradlew :reachable:publishAndReleaseToMavenCentral \
+            -Pversion=${{ inputs.version }} --no-daemon
+
       # Belt-and-suspenders: also stash the XCFramework zip on the GitHub
       # Release page so consumers who haven't wired up GitHub Packages can
       # still drop the framework in directly. Same artifact, same checksum.
