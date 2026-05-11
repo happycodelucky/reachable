@@ -1,5 +1,16 @@
 name: Release
 
+# Maven Central is the only active distribution channel. The previous
+# KMMBridge / GitHub Packages / SPM Package.swift pipeline was removed —
+# see git history if you need to restore an SPM-side delivery story for
+# non-KMP iOS / macOS consumers.
+#
+# `dryRun` defaults to `true` because Maven Central releases are
+# **irreversible** — Sonatype never deletes a published artifact. The dry
+# run uploads to the Central Portal staging area only and stops there,
+# so the artifact set can be reviewed on https://central.sonatype.com/
+# before manually clicking Publish (or Drop). Flip the input to `false`
+# to publish + auto-release in one step.
 on:
   workflow_dispatch:
     inputs:
@@ -7,44 +18,28 @@ on:
         description: Release version without the v prefix (e.g. 0.2.0)
         required: true
         type: string
-      notes:
-        description: Release notes for GitHub Releases (optional; auto-generated if empty)
-        required: false
-        type: string
-
-# `contents: write` lets the workflow commit the regenerated Package.swift
-# back to main and push the version tag. `packages: write` lets KMMBridge push
-# the XCFramework zip to GitHub Packages as a Maven artifact (CLAUDE.md §9).
-permissions:
-  contents: write
-  packages: write
+      dryRun:
+        description: Upload to Central staging only; do not auto-release. Default true.
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   release:
     runs-on: macos-latest
 
+    # The four MAVEN_CENTRAL_* secrets live on the `continous-deloyment`
+    # GitHub environment, not the repository scope. Without this binding
+    # `secrets.MAVEN_CENTRAL_*` resolves to the empty string at runtime
+    # and vanniktech fails with cryptic auth / signing errors that look
+    # like a credentials problem in the downstream tool.
+    environment: continous-deloyment
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          # Full history so the workflow can rebase the Package.swift commit on
-          # top of `main` cleanly.
-          fetch-depth: 0
-          # Token with `contents: write` so the post-publish git commit + push
-          # for Package.swift authenticates correctly.
-          token: ${{ github.token }}
 
-      - name: Derive release metadata
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-        run: echo "TAG=v${INPUT_VERSION}" >> "$GITHUB_ENV"
-
-      - name: Configure git for release commits
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-
-      # mise pins JDK, gradle, gh, etc. (see /mise.toml). setup-gradle below is
+      # mise pins JDK, gradle, etc. (see /mise.toml). setup-gradle below is
       # layered on top solely for its build / dependency cache.
       - name: Set up mise toolchain
         uses: jdx/mise-action@v2
@@ -55,74 +50,28 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
-      # KMMBridge does the whole pipeline:
-      #   1. Builds Reachable.xcframework via assembleReachableXCFramework.
-      #   2. Zips it and publishes the zip + .module metadata to GitHub Packages
-      #      (the maven-publish + addGithubPackagesRepository wiring in
-      #      reachable/build.gradle.kts handles auth via GITHUB_PUBLISH_TOKEN).
-      #   3. Generates Package.swift at the repo root pointing SPM at the zip
-      #      via URL + sha256.
-      #   4. Commits Package.swift and pushes the version tag back to origin.
+      # Vanniktech `mavenPublishing { }` exposes two umbrella tasks (see
+      # reachable/build.gradle.kts):
       #
-      # `kmmBridgePublish` is the umbrella task that runs all of the above. The
-      # `-Pversion=...` override drives the Maven coordinate version, the
-      # SwiftPackage version, and the git tag.
+      #   * publishToMavenCentral             — build + sign + upload to
+      #     Central staging. STOPS before the irreversible "release" step.
+      #     Used for dry runs; review the staged deployment on
+      #     https://central.sonatype.com/ before manually publishing.
       #
-      # Two non-obvious requirements (kmmbridge 1.2.1):
-      #   * `-PENABLE_PUBLISHING=true` — KMMBridge only registers the
-      #     `kmmBridgePublish` task inside an afterEvaluate block gated on this
-      #     property. Without it the task does not exist and gradle errors out
-      #     with "task 'kmmBridgePublish' not found in project ':reachable'".
-      #     Passed on the CI command line only (not in gradle.properties) so
-      #     local builds stay lean and can never accidentally publish.
-      #   * `GITHUB_REPO` — `addGithubPackagesRepository()` reads this exact
-      #     property/env name (NOT the GHA-standard `GITHUB_REPOSITORY`) and
-      #     silently returns without registering a Maven repo if it's absent,
-      #     which would later surface as "Artifact repository not found".
-      - name: Publish via KMMBridge
-        env:
-          # `gh` CLI calls below need the standard GITHUB_TOKEN.
-          GITHUB_TOKEN: ${{ github.token }}
-          # KMMBridge's `addGithubPackagesRepository()` helper reads these env
-          # names verbatim. The publish-token must have `write:packages` scope —
-          # the workflow-level `permissions: packages: write` grants it.
-          GITHUB_PUBLISH_USER: ${{ github.actor }}
-          GITHUB_PUBLISH_TOKEN: ${{ github.token }}
-          # `addGithubPackagesRepository()` reads `GITHUB_REPO` (kmmbridge's
-          # own name), not the GHA-standard `GITHUB_REPOSITORY`. Without this,
-          # the helper early-returns and no Maven repo gets registered.
-          GITHUB_REPO: ${{ github.repository }}
-        run: |
-          ./gradlew :reachable:kmmBridgePublish \
-            -Pversion=${{ inputs.version }} \
-            -PENABLE_PUBLISHING=true \
-            --no-daemon
-
-      # Maven Central upload via the vanniktech plugin. Runs AFTER KMMBridge
-      # because Central uploads are slow and irreversible — a released
-      # version on the Central Portal is permanent (Sonatype never deletes
-      # published artifacts). Publishing to GitHub Packages first means SPM
-      # consumers already have what they need even if this step fails.
+      #   * publishAndReleaseToMavenCentral   — full pipeline. Uploads,
+      #     closes the deployment, and releases it to public Maven Central.
+      #     Cannot be undone. Used only when `dryRun=false`.
       #
-      # `publishAndReleaseToMavenCentral` = build + sign + upload to the
-      # Central Portal staging area + close the deployment + release it for
-      # public consumption, all in one task (because `automaticRelease =
-      # true` is set in the `mavenPublishing { }` block).
-      #
-      # This task only knows about the `mavenCentral` repository vanniktech
-      # registered. KMMBridge's GitHub Packages repository is invisible to
-      # it, so there's no cross-contamination — the AAR / klibs / metadata
-      # go to Central; the XCFramework zip is already on GitHub Packages
-      # from the step above.
-      #
-      # Snapshot versions (anything ending in `-SNAPSHOT`) auto-route to the
-      # Central Portal snapshots endpoint; no branch in CI needed.
-      - name: Publish to Maven Central
+      # Both publish every publication the KMP plugin registered (Android
+      # AAR, kotlinMultiplatform metadata, iosArm64, iosSimulatorArm64,
+      # macosArm64 klibs) plus their sources / javadoc jars and detached
+      # GPG signatures. Snapshot versions (anything ending in `-SNAPSHOT`)
+      # auto-route to the Central Portal snapshots endpoint.
+      - name: Publish to Maven Central (dry run — staging only)
+        if: ${{ inputs.dryRun }}
         env:
           # Vanniktech reads these four properties; Gradle auto-populates
-          # them from ORG_GRADLE_PROJECT_* env vars. The four GitHub Actions
-          # secrets are configured under Settings → Secrets and variables →
-          # Actions (see docs/publishing.md).
+          # them from ORG_GRADLE_PROJECT_* env vars. See docs/publishing.md.
           ORG_GRADLE_PROJECT_mavenCentralUsername:       ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword:       ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           # In-memory GPG key: paste the full ASCII-armoured private key
@@ -132,44 +81,28 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey:         ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
         run: |
+          ./gradlew :reachable:publishToMavenCentral \
+            -Pversion=${{ inputs.version }} --no-daemon
+
+      - name: Publish to Maven Central (release — IRREVERSIBLE)
+        if: ${{ !inputs.dryRun }}
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername:       ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword:       ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey:         ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
+        run: |
           ./gradlew :reachable:publishAndReleaseToMavenCentral \
             -Pversion=${{ inputs.version }} --no-daemon
 
-      # Belt-and-suspenders: also stash the XCFramework zip on the GitHub
-      # Release page so consumers who haven't wired up GitHub Packages can
-      # still drop the framework in directly. Same artifact, same checksum.
-      - name: Locate published XCFramework zip
-        id: zip
+      - name: Summary
         run: |
-          ZIP=$(ls reachable/build/kmmbridge/zip/*.zip | head -1)
-          echo "ZIP=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "Found zip: $ZIP"
-
-      - name: Compute archive checksum
-        run: |
-          shasum -a 256 "${{ steps.zip.outputs.ZIP }}" > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
-      - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: reachable-release-${{ env.TAG }}
-          path: |
-            ${{ steps.zip.outputs.ZIP }}
-            SHA256SUMS.txt
-
-      - name: Publish GitHub release
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          TAG: ${{ env.TAG }}
-          NOTES: ${{ inputs.notes }}
-          ZIP: ${{ steps.zip.outputs.ZIP }}
-        run: |
-          ASSETS=("$ZIP" SHA256SUMS.txt)
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${ASSETS[@]}" --clobber
-          elif [[ -n "$NOTES" ]]; then
-            gh release create "$TAG" "${ASSETS[@]}" --title "$TAG" --notes "$NOTES"
+          if [[ "${{ inputs.dryRun }}" == "true" ]]; then
+            echo "✅ Dry run complete. Review the staged deployment at:"
+            echo "   https://central.sonatype.com/publishing/deployments"
+            echo "   Click 'Publish' to release ${{ inputs.version }}, or 'Drop' to discard."
           else
-            gh release create "$TAG" "${ASSETS[@]}" --title "$TAG" --generate-notes
+            echo "🚀 Released com.happycodelucky.reachable:reachable:${{ inputs.version }} to Maven Central."
+            echo "   Available at: https://central.sonatype.com/artifact/com.happycodelucky.reachable/reachable/${{ inputs.version }}"
+            echo "   Note: it can take up to ~30 min to appear in https://repo1.maven.org/maven2/."
           fi
