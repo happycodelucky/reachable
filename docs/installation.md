@@ -51,6 +51,10 @@ The Swift module is `Reachable`:
 ```swift
 import Reachable
 
+// Singleton path (recommended):
+let reachability: any Reachability = Reachability.shared
+
+// Or the explicit-lifecycle factory:
 let reachability: any Reachability = Reachability()
 ```
 
@@ -123,15 +127,17 @@ for the iteration loop.
 === "Kotlin"
 
     ```kotlin
-    val r = Reachability(applicationContext)
+    // Singleton path — no setup required.
+    val r = Reachability.shared
     println(r.status.value)   // ReachabilityStatus(reachable=…, transport=…, metering=…)
-    r.close()
+    // r.close() is a no-op on .shared; omit it.
     ```
 
 === "Swift"
 
     ```swift
-    let r = Reachability()
+    // Singleton path — no setup required.
+    let r = Reachability.shared
     print(r.status.value!)    // ReachabilityStatus(reachable: …, transport: …, metering: …)
-    r.close()
+    // r.close() is a no-op on .shared; omit it.
     ```

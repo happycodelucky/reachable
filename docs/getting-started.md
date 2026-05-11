@@ -19,26 +19,61 @@
 
 Full setup including GitHub Packages auth: [Installation](installation.md).
 
-## 2. Construct one Reachability per process
+## 2. Get a Reachability handle
 
-The factory takes a `Context` on Android and no arguments on Apple. Construct
-at the platform entrypoint, then inject the `Reachability` interface into
-shared code.
+`Reachability.shared` is the recommended entry point for most consumers.
+It is a process-lifetime singleton: callable from anywhere, at any time,
+with no construction or Context plumbing required.
 
 === "Android"
 
     ```kotlin
-    // Application.onCreate
+    // From any Composable, ViewModel, or Application — no setup needed.
+    val reachability: Reachability = Reachability.shared
+    ```
+
+    On Android, the library's bundled `androidx.startup` initializer
+    attaches the singleton to the application `Context` during the
+    `InitializationProvider` ContentProvider pass — before
+    `Application.onCreate`. Collectors started before that point receive
+    `ReachabilityStatus.Unknown` first and then live values; `StateFlow`
+    late-joiner semantics make this race-free.
+
+=== "iOS"
+
+    ```swift
+    // From any SwiftUI view-model, @main App, or anywhere else.
+    let reachability: any Reachability = Reachability.shared
+    ```
+
+    On first access, constructs an `nw_path_monitor`-backed observer and
+    starts it eagerly. Subsequent accesses return the same instance.
+
+=== "macOS"
+
+    ```swift
+    let reachability: any Reachability = Reachability.shared
+    ```
+
+### Explicit-lifecycle alternative
+
+For tests or any code that needs a fresh observer with explicit teardown,
+use the platform factories instead:
+
+=== "Android"
+
+    ```kotlin
     val reachability: Reachability = Reachability(applicationContext)
-    val viewModel = ConnectivityModel(reachability)
+    // ...
+    reachability.close()
     ```
 
 === "iOS"
 
     ```swift
-    // App.init or your composition root
     let reachability: any Reachability = Reachability()
-    let model = ConnectivityModel(reachability: reachability)
+    // ...
+    reachability.close()
     ```
 
 === "macOS"
@@ -47,14 +82,19 @@ shared code.
     let reachability: any Reachability = Reachability()
     ```
 
+Calling `close()` on `Reachability.shared` is intentionally a no-op — the
+singleton's lifetime is the process. Use the factories above when you need
+`close()` to actually tear down the observer.
+
 ## 3. React to status
 
 === "Compose"
 
     ```kotlin
     @Composable
-    fun ConnectivityBanner(reachability: Reachability) {
-        val status by reachability.status.collectAsStateWithLifecycle()
+    fun ConnectivityBanner() {
+        // Use Reachability.shared directly — no parameter plumbing needed.
+        val status by Reachability.shared.status.collectAsStateWithLifecycle()
         if (!status.reachable) {
             Text("You're offline")
         }
@@ -67,17 +107,17 @@ shared code.
     @MainActor
     final class ConnectivityModel: ObservableObject {
         @Published var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
-        private let reachability: any Reachability
         private var task: Task<Void, Never>?
 
-        init(reachability: any Reachability) {
-            self.reachability = reachability
+        init() {
+            // Reachability.shared — process-lifetime singleton, no close needed.
+            let reachability: any Reachability = Reachability.shared
             task = Task { [weak self] in
                 for await s in reachability.status { self?.status = s }
             }
         }
 
-        deinit { task?.cancel(); reachability.close() }
+        deinit { task?.cancel() }
     }
     ```
 

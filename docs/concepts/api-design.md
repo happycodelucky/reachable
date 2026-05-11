@@ -29,6 +29,11 @@ public interface Reachability : AutoCloseable {
     public val lowDataMode: StateFlow<Boolean>
 
     override fun close()
+
+    public companion object {
+        // Process-lifetime singleton. close() is a no-op on this instance.
+        public val shared: Reachability
+    }
 }
 
 // appleMain — iOS, iPadOS, macOS
@@ -39,7 +44,8 @@ public fun Reachability(context: Context): Reachability
 ```
 
 Everything else — platform observers, the shared base class, the mapping
-helpers — is `internal`.
+helpers, the singleton holder, and the `NonClosingReachability` decorator —
+is `internal`.
 
 ## One observable for both questions
 
@@ -107,26 +113,70 @@ Reachable does (2). The cost is a `when` over `metering` that needs an
 `else` arm even on Android-only paths, or a deliberate elision of
 `Constrained` from Android branches with documentation as the contract.
 
+## Singleton vs explicit lifecycle
+
+`Reachability.shared` is the recommended entry point for application code.
+The design goal is eliminating "did I construct Reachability early enough?"
+ordering bugs that arise when a module tries to read reachability before the
+entrypoint has had a chance to run the factory.
+
+```kotlin
+// Android, iOS, macOS — one call, callable from anywhere.
+val reachability: Reachability = Reachability.shared
+```
+
+From Swift: `Reachability.shared` (via a Swift extension compiled into the
+framework by SKIE; no companion prefix needed).
+
+**Why we use a singleton, not a mandatory factory.** On Android, the
+`Context` requirement means that anything consuming reachability via
+constructor injection has a transitive dependency on Android lifecycle
+ordering. In multi-module apps, that ordering is fragile — a module
+initialised during `ContentProvider` startup can't safely call
+`Reachability(context)` if the DI graph hasn't wired it yet. The
+singleton is attached during the `InitializationProvider` ContentProvider
+pass (earlier than any `Application.onCreate`), so the `Unknown → live`
+transition happens before any consumer can observe it.
+
+**`StateFlow` makes the `Unknown` seed safe.** The singleton's `status`
+starts at `ReachabilityStatus.Unknown`. A collector that starts before the
+Android attach will see `Unknown` first, then the live value. A collector
+that starts after will immediately see the most-recent live value. No race,
+no special-casing needed.
+
+**The singleton doesn't preclude injection.** Shared code can still take a
+`Reachability` interface parameter and be tested with a mock; tests just
+pass a freshly-constructed per-instance factory instead of the singleton.
+
+```kotlin
+// Test: inject a fresh instance, close it afterwards.
+val r = Reachability(context)
+try {
+    assertEquals(true, r.isReachable)
+} finally {
+    r.close()
+}
+```
+
 ## Asymmetric factories
 
 `Reachability()` on Apple, `Reachability(context)` on Android. There's no
 `expect class ReachabilityFactory` to paper over the asymmetry — wrapping
 it that way only moves the `Context` requirement one layer down.
 
-[CLAUDE.md §5](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
-calls for constructor injection. The consumer's DI container (Koin, Hilt,
-hand-wired) calls the platform-specific factory at the entrypoint and
-binds the `Reachability` interface for shared code:
+The consumer's DI container (Koin, Hilt, hand-wired) calls the platform-
+specific factory at the entrypoint and binds the `Reachability` interface
+for shared code:
 
 ```kotlin
 // Common shared-module code: depends on the interface only.
 class ConnectivityModel(private val reachability: Reachability)
 
-// Android entrypoint
+// Android entrypoint (explicit lifecycle)
 val r: Reachability = Reachability(application)
 val model = ConnectivityModel(r)
 
-// iOS entrypoint
+// iOS entrypoint (explicit lifecycle)
 let r: any Reachability = Reachability()
 let model = ConnectivityModel(reachability: r)
 ```
@@ -144,12 +194,19 @@ for the rule.)
 
 ## `AutoCloseable.close()`
 
-Reachable owns a platform observer (`nw_path_monitor` or `NetworkCallback`)
-and a `SupervisorJob`-rooted coroutine scope. Neither has a reliable
-finaliser path on both Apple and Android, so cleanup is explicit.
+Per-instance handles (built via `Reachability(context)` / `Reachability()`)
+own a platform observer (`nw_path_monitor` or `NetworkCallback`) and a
+`SupervisorJob`-rooted coroutine scope. Neither has a reliable finaliser
+path on both Apple and Android, so cleanup is explicit.
 
 `AutoCloseable.close()` is the universal idiom across Kotlin, Java, and
 Swift; SKIE renders it as `close()` without any name mangling. The
 implementation is idempotent and synchronous.
+
+`Reachability.shared` is an exception: `close()` is an intentional no-op
+on the singleton. The singleton's lifetime is the process; there is no
+scope owner that will naturally go out of scope and trigger teardown. See
+[Concepts → Lifecycle](lifecycle.md#singleton-path--reachabilityshared) for
+the full rationale.
 
 See [Concepts → Lifecycle](lifecycle.md) for when to construct and close.

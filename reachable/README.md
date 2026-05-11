@@ -29,6 +29,11 @@ public interface Reachability : AutoCloseable {
     public val lowDataMode: StateFlow<Boolean>
 
     override fun close()
+
+    public companion object {
+        // Process-lifetime singleton. close() is a no-op on this instance.
+        public val shared: Reachability
+    }
 }
 
 // appleMain — iOS, iPadOS, macOS
@@ -46,8 +51,12 @@ lowest-common-denominator reads.
 
 ### Kotlin (shared, Android)
 
+`Reachability.shared` is the recommended entry point — a process-lifetime
+singleton, no `Context` plumbing required:
+
 ```kotlin
-val reachability: Reachability = Reachability(context) // or Reachability() on Apple
+// Singleton — works from anywhere, including before Application.onCreate.
+val reachability: Reachability = Reachability.shared
 
 if (reachability.isReachable) { /* online */ }
 
@@ -56,13 +65,21 @@ lifecycleScope.launch {
         updateBanner(status)
     }
 }
+// close() on .shared is a no-op; the OS reaps the observer at process exit.
+```
 
-reachability.close() // tear down on app exit
+For explicit-lifecycle control (tests, per-feature observers):
+
+```kotlin
+val reachability: Reachability = Reachability(context) // or Reachability() on Apple
+// ...
+reachability.close() // honours close() normally
 ```
 
 ### SwiftUI (iOS, macOS)
 
-SKIE bridges `StateFlow` as `AsyncSequence`:
+SKIE bridges `StateFlow` as `AsyncSequence`. Use `Reachability.shared` as
+the primary entry point from Swift too:
 
 ```swift
 import Reachable
@@ -70,15 +87,17 @@ import Reachable
 @MainActor
 final class ConnectivityModel: ObservableObject {
     @Published var status: ReachabilityStatus = ReachabilityStatus.companion.Unknown
-    private let reachability = Reachability()
+    private var task: Task<Void, Never>?
 
-    func observe() async {
-        for await s in reachability.status {
-            self.status = s
+    init() {
+        // Reachability.shared — process-lifetime singleton, no close needed.
+        let reachability: any Reachability = Reachability.shared
+        task = Task { [weak self] in
+            for await s in reachability.status {
+                self?.status = s
+            }
         }
     }
-
-    deinit { reachability.close() }
 }
 ```
 
@@ -89,8 +108,10 @@ final class ConnectivityModel: ObservableObject {
 
 ```kotlin
 @Composable
-fun ConnectivityBanner(reachability: Reachability) {
-    val status by reachability.status.collectAsStateWithLifecycle()
+fun ConnectivityBanner() {
+    // No Context, no remember — Reachability.shared is auto-attached by
+    // the library's androidx.startup initializer before Application.onCreate.
+    val status by Reachability.shared.status.collectAsStateWithLifecycle()
     if (!status.reachable) {
         Text("You're offline")
     }
@@ -99,11 +120,14 @@ fun ConnectivityBanner(reachability: Reachability) {
 
 ## Construction
 
-The factories are intentionally asymmetric: the Apple factory takes
-nothing, the Android factory takes a `Context`. The library doesn't
-centralise construction — your DI graph (Koin, Hilt, manual) wires the
-platform-specific factory at the app entrypoint and binds the
-`Reachability` interface for shared code.
+`Reachability.shared` is the zero-setup singleton: call it from anywhere.
+
+The explicit-lifecycle factories are intentionally asymmetric — the Apple
+factory takes nothing, the Android factory takes a `Context`. Use them
+when you need per-instance teardown or a fresh observer (tests,
+per-feature observers). Your DI graph wires the platform-specific factory
+at the app entrypoint and binds the `Reachability` interface for shared
+code.
 
 ## Permissions
 
@@ -134,10 +158,12 @@ model.
   callback body is a single `MutableStateFlow.value` write, which is
   thread-safe; collectors observe on whatever dispatcher they were
   started on.
-- **Close semantics.** `close()` cancels the platform observer first,
-  then the internal coroutine scope. After close, `status.value`
-  continues to expose the last observed value but never emits again.
-  `close()` is idempotent.
+- **Close semantics.** On per-instance factories (`Reachability(context)` /
+  `Reachability()`), `close()` cancels the platform observer first, then
+  the internal coroutine scope. After close, `status.value` continues to
+  expose the last observed value but never emits again. `close()` is
+  idempotent. On `Reachability.shared`, `close()` is an intentional no-op
+  — the singleton lives for the process.
 
 ## Testing this library locally
 

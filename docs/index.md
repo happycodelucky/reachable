@@ -11,7 +11,8 @@ It targets iOS, iPadOS, macOS, and Android, and presents the same API to
 Kotlin and Swift consumers.
 
 ```kotlin
-val reachability: Reachability = Reachability(context) // or Reachability() on Apple
+// Singleton — no Context plumbing, callable from anywhere.
+val reachability: Reachability = Reachability.shared
 
 if (reachability.isReachable) {
     // online
@@ -22,10 +23,19 @@ reachability.status.collect { status ->
 }
 ```
 
+From Swift:
+
+```swift
+let reachability: any Reachability = Reachability.shared
+```
+
 `status.value` for a synchronous read, `status.collect {}` for a reactive
 listener, `status.first()` for a one-shot suspend. `isReachable` and
 `isLowDataMode` are shortcuts for the two most common axes; see
 [Concepts → API design](concepts/api-design.md).
+
+For explicit lifecycle (tests, per-feature observers), use the platform
+factories `Reachability(context)` / `Reachability()` instead.
 
 ## Targets
 

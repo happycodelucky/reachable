@@ -116,6 +116,12 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.kotlinx.coroutines.android)
+            // androidx.startup hosts the bundled `ReachabilityInitializer`
+            // that attaches `Reachability.shared` to the application Context
+            // during the InitializationProvider ContentProvider pass —
+            // before `Application.onCreate`. See `ReachabilityInitializer.kt`
+            // and the matching `<provider>` entry in `AndroidManifest.xml`.
+            implementation(libs.androidx.startup.runtime)
         }
 
         // androidUnitTest source set is created by withHostTestBuilder above.
