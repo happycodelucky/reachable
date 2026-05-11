@@ -2,14 +2,44 @@
 <!--
   Reachable — Android library manifest.
 
-  Declares the ACCESS_NETWORK_STATE permission so that ConnectivityManager
-  callbacks are allowed. The Android Manifest Merger pulls this into any
-  consuming app's manifest at build time, so consumers do not need to add
-  the permission themselves.
+  Two responsibilities:
 
-  ACCESS_NETWORK_STATE is a normal-protection permission (not "dangerous"),
-  so no runtime grant is needed at any API level.
+  1. Declare the ACCESS_NETWORK_STATE permission so ConnectivityManager
+     callbacks are allowed. The Android Manifest Merger pulls this into
+     any consuming app's manifest at build time, so consumers do not
+     need to add it themselves.
+
+     ACCESS_NETWORK_STATE is a normal-protection permission (not
+     "dangerous"), so no runtime grant is needed at any API level.
+
+  2. Register `ReachabilityInitializer` with androidx.startup's
+     `InitializationProvider` so the library's `Reachability.shared`
+     singleton attaches to the application Context during the
+     ContentProvider startup pass — i.e. before `Application.onCreate`.
+     The manifest merger combines this `<provider>` entry with any
+     consumer-side `InitializationProvider`, so libraries that ship
+     their own startup initializers (WorkManager, Hilt, etc.) coexist
+     cleanly.
+
+     `tools:node="merge"` is critical: without it, two libraries each
+     declaring `InitializationProvider` at the same authority would
+     produce a "duplicate provider" build error. With it, the merger
+     unions the `<meta-data>` children.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application>
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.happycodelucky.reachable.ReachabilityInitializer"
+                android:value="androidx.startup" />
+        </provider>
+    </application>
 </manifest>

@@ -6,6 +6,54 @@ Use `collectAsStateWithLifecycle()` (from
 auto-pauses Flow collection when the activity goes to STOPPED, so the
 underlying `NetworkCallback` doesn't keep working in the background.
 
+## With `Reachability.shared` (recommended)
+
+The library's bundled `androidx.startup` initializer attaches the
+singleton before `Application.onCreate`, so you can call
+`Reachability.shared` directly from any `@Composable` with no `remember`
+wrapping needed:
+
+```kotlin
+@Composable
+fun ConnectivityBanner() {
+    // Reachability.shared is the process-lifetime singleton — no remember,
+    // no context, no Application subclass required.
+    val status by Reachability.shared.status.collectAsStateWithLifecycle()
+    if (!status.reachable) {
+        Surface(
+            color = MaterialTheme.colorScheme.errorContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                "You're offline",
+                modifier = Modifier.padding(8.dp),
+            )
+        }
+    }
+}
+```
+
+```kotlin
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Column {
+                    ConnectivityBanner()
+                    AppContent()
+                }
+            }
+        }
+    }
+}
+```
+
+## With an injected instance (explicit lifecycle)
+
+If you need an explicit-lifecycle instance (tests, per-feature observers),
+pass it as a parameter:
+
 ```kotlin
 @Composable
 fun ConnectivityBanner(reachability: Reachability) {
@@ -24,7 +72,7 @@ fun ConnectivityBanner(reachability: Reachability) {
 }
 ```
 
-From a top-level scaffold:
+From a top-level scaffold with an `Application`-owned instance:
 
 ```kotlin
 class MainActivity : ComponentActivity() {
@@ -78,9 +126,10 @@ configuration change doesn't drop and re-establish the subscription.
 
 ## What can go wrong
 
-- **Constructing `Reachability` inside `@Composable` without `remember`**
-  re-creates the platform observer on every recomposition. Hoist into the
-  Application class (as above) or wrap in
+- **Constructing `Reachability(context)` inside `@Composable` without `remember`**
+  re-creates the platform observer on every recomposition. Use
+  `Reachability.shared` (preferred — already a stable singleton), hoist
+  into the `Application` class (as above), or wrap in
   `remember(context) { Reachability(context) }` if the lifetime really is
   composable-scoped.
 - **Calling `collectAsState()` instead of `collectAsStateWithLifecycle()`**

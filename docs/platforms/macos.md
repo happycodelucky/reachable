@@ -5,7 +5,21 @@ source set in `:reachable`, which contains a single `AppleReachability`
 class wrapping `nw_path_monitor`. See [Platforms → iOS](ios.md) for the
 implementation walk-through; this page covers the macOS-specific deltas.
 
-## Construction
+## Singleton entry point — `Reachability.shared`
+
+```swift
+import Reachable
+
+let reachability: any Reachability = Reachability.shared
+```
+
+`Reachability.shared` is a process-lifetime singleton provided by the
+same Swift extension as on iOS (`src/appleMain/swift/Reachability+Shared.swift`,
+compiled into the `Reachable` module by SKIE). On first access, constructs
+an `nw_path_monitor`-backed observer and starts it eagerly. Calling
+`close()` on this instance is a no-op.
+
+## Explicit-lifecycle factory
 
 ```swift
 import Reachable
@@ -14,7 +28,8 @@ let reachability: any Reachability = Reachability()
 ```
 
 Same factory, same dispatch queue, same update-handler shape, same mapping
-rules.
+rules as iOS. Use for tests or per-feature observers that need explicit
+teardown via `close()`.
 
 ## Deployment target
 
@@ -60,6 +75,24 @@ app:
 - macOS Low Data Mode is set per-Wi-Fi network in System Settings → Network
   → Wi-Fi → Details. Toggle it to trigger `Metering.Constrained` emissions
   manually.
+
+Using `Reachability.shared` (recommended — no property needed):
+
+```swift
+@main
+struct ReachableExampleApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ReachabilityScreen()
+                .environmentObject(ConnectivityModel(reachability: Reachability.shared))
+        }
+        .windowResizability(.contentSize)
+    }
+}
+```
+
+Or with an explicit-lifecycle instance (useful if you want `close()` on
+app teardown):
 
 ```swift
 @main

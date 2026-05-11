@@ -66,6 +66,16 @@ internal abstract class StateFlowReachability : Reachability {
     private val closed = atomic(false)
 
     /**
+     * `true` after [close] has been called. Subclasses use this to guard
+     * deferred-init paths — e.g. [com.happycodelucky.reachable.AndroidReachability.attach]
+     * early-returns if the instance has already been closed, so a late
+     * `attach(context)` after teardown can't accidentally re-register a
+     * `NetworkCallback` that will never be unregistered.
+     */
+    protected val isClosed: Boolean
+        get() = closed.value
+
+    /**
      * Push a new status to all collectors of [status]. Safe to call from any
      * thread — `MutableStateFlow.value` writes are concurrency-safe and
      * collapse adjacent identical values automatically.

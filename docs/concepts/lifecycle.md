@@ -1,26 +1,92 @@
 # Lifecycle
 
 `Reachability` is a long-lived handle that owns a platform observer and a
-coroutine scope. Construct one per process, keep it alive for the
-process lifetime (or for the scope you're observing on), and `close()` it
-when that scope tears down.
+coroutine scope. The library offers two lifecycle paths — singleton and
+per-instance — with different construction and close contracts.
 
-## When to construct
+## Singleton path — `Reachability.shared`
 
-| Where you are        | Where to construct                                                              |
-|----------------------|---------------------------------------------------------------------------------|
-| Android              | `Application.onCreate()` — bind to the application context.                     |
-| iOS                  | App `init` (the `@main` `App` struct) or your composition root.                 |
-| macOS                | Same as iOS — both Apple platforms share `appleMain`.                           |
-| Test (`runTest`)     | Per-test, in a `try-with-resources`-style block. Don't share across tests.      |
+`Reachability.shared` is a process-lifetime singleton. Use it for the
+vast majority of app code: it requires no construction, no Context
+plumbing, and no teardown.
+
+### When to use it
+
+Whenever you need reachability in a `@Composable`, a ViewModel, a
+background service, or any code that doesn't have a natural "this scope
+owns reachability" owner.
+
+### Construction (Android)
+
+On Android, the library's bundled `ReachabilityInitializer` (an
+`androidx.startup.Initializer`) attaches the singleton to the application
+`Context` during the `InitializationProvider` ContentProvider pass —
+*before* `Application.onCreate`. This means:
+
+- The singleton is fully functional by the time any `Activity`,
+  `ContentProvider`, or `Application.onCreate` runs.
+- Collectors started before attach receive `ReachabilityStatus.Unknown`
+  first, then live values as soon as the platform reports them. `StateFlow`
+  late-joiner semantics make this race-free.
+
+### Construction (Apple)
+
+On Apple (iOS, iPadOS, macOS), first access constructs an
+`nw_path_monitor`-backed observer and starts it eagerly. There is no
+Context dependency — the monitor is self-contained. Subsequent accesses
+return the same instance.
+
+### Close semantics
+
+Calling `close()` on `Reachability.shared` is an intentional **no-op**.
+The singleton's lifetime is the process; neither platform has a usable
+"natural deinit" path for a long-lived singleton:
+
+- On Android, `ConnectivityManager.registerNetworkCallback` causes the OS
+  to hold a strong reference to the callback, rooting it back to the
+  `Reachability` instance. The instance is unreclaimable until
+  `unregisterNetworkCallback` runs — so a "natural deinit" doesn't exist.
+  The kernel reaps the registration at process exit.
+- On Apple, `nw_path_monitor_set_update_handler` retains the update
+  handler, which captures the instance. ARC won't drop it until
+  `nw_path_monitor_cancel`. Same kernel-reaps-at-exit story.
+
+A misplaced `use { }` block, an `AutoCloseable`-aware DI container, or a
+test fixture that closes everything in `@AfterEach` must not accidentally
+freeze the singleton's `StateFlow` and break every other consumer in the
+process. The no-op `close()` is the safeguard.
+
+## Per-instance path — factories
+
+For tests, per-feature observers, or any code that needs explicit
+teardown:
+
+```kotlin
+// Android
+val reachability: Reachability = Reachability(applicationContext)
+```
+
+```swift
+// Apple
+let reachability: any Reachability = Reachability()
+```
+
+### When to construct
+
+| Where you are        | Where to construct                                                                                                   |
+|----------------------|----------------------------------------------------------------------------------------------------------------------|
+| Android              | `Application.onCreate()` — bind to the application context. Or just use `Reachability.shared`.                      |
+| iOS                  | App `init` (the `@main` `App` struct) or your composition root. Or just use `Reachability.shared`.                  |
+| macOS                | Same as iOS — both Apple platforms share `appleMain`.                                                                |
+| Test (`runTest`)     | Per-test, in a `try-with-resources`-style block. Don't share across tests (use the factory, not `Reachability.shared`). |
 
 The Apple factory creates a per-instance serial dispatch queue and starts
 an `nw_path_monitor`. The Android factory grabs `applicationContext`'s
 `ConnectivityManager` and registers a `NetworkCallback`. Both are cheap
 (microseconds) but each instance is a small allocation plus a platform
-observer registration, so more than one per process is wasteful.
+observer registration.
 
-## When to close
+### When to close
 
 `close()` cancels the platform observer (`nw_path_monitor_cancel` on Apple,
 `unregisterNetworkCallback` on Android) and cancels the internal coroutine
@@ -57,12 +123,20 @@ milliseconds of construction. Until then, `status.value` returns
 single `MutableStateFlow.value` write. Collectors observe on whatever
 dispatcher they collect on.
 
-Construction also performs a synchronous read of
-`connectivityManager.activeNetwork` plus `getNetworkCapabilities(network)`
-and seeds `status.value` from that — so unlike on Apple, `status.value` is
-meaningful immediately after construction, before any callback fires. A
-`LaunchedEffect`-style `if (reachability.status.value.reachable)` check on
-app start works without racing.
+**Explicit-lifecycle factory** (`Reachability(context)`): construction
+performs a synchronous read of `connectivityManager.activeNetwork` plus
+`getNetworkCapabilities(network)` and seeds `status.value` from that — so
+`status.value` is meaningful immediately after construction, before any
+callback fires. A `LaunchedEffect`-style synchronous check on app start
+works without racing.
+
+**Singleton** (`Reachability.shared`): `status.value` starts as
+`ReachabilityStatus.Unknown` and transitions to the live value after the
+`ReachabilityInitializer` calls `attach()` during the ContentProvider
+startup pass (before `Application.onCreate`). Collectors started before
+that transition see `Unknown` first, then the live value. The transition
+happens early enough that in practice the `Unknown` window is
+sub-millisecond by the time any UI is drawn.
 
 ## Multiple collectors
 
@@ -77,17 +151,26 @@ then every subsequent change. There's no replay buffer to tune.
 
 - **Constructing inside a Compose `@Composable` without `remember(...)`**.
   Every recomposition would create a new platform observer; the Android
-  `NetworkCallback` registry would fill up. Wrap in
-  `remember(context) { Reachability(context) }`, or hoist into a view-model.
-- **Constructing inside a SwiftUI `View`'s `body`**. Same problem. Hoist
-  into an `@StateObject` view-model whose `init` calls the factory once.
+  `NetworkCallback` registry would fill up. Use `Reachability.shared`
+  (preferred), or wrap in `remember(context) { Reachability(context) }`,
+  or hoist into a view-model.
+- **Constructing inside a SwiftUI `View`'s `body`**. Same problem. Use
+  `Reachability.shared` (preferred), or hoist into an `@StateObject`
+  view-model whose `init` calls the factory once.
+- **Calling `close()` on `Reachability.shared`**. It's a no-op by design —
+  but if you see code that explicitly calls it, the intent was likely to
+  use a per-instance factory. The no-op prevents accidents; don't rely on
+  it as deliberate cleanup.
 - **Sharing a `Reachability` instance across processes** (Android multi-
   process apps with `android:process=...` per service). Each process needs
   its own `ConnectivityManager` registration; cross-process sharing
-  doesn't work.
-- **Forgetting to `close()` in test code**. `runTest` leaves dangling
-  scopes alive between tests; the next test sees stale state. Bracket with
-  `val r = Reachability(...); try { ... } finally { r.close() }`.
+  doesn't work. `Reachability.shared` is per-process — each process that
+  hosts a `ContentProvider` gets its own auto-attached singleton.
+- **Forgetting to `close()` in test code** when using per-instance
+  factories. `runTest` leaves dangling scopes alive between tests; the next
+  test sees stale state. Bracket with
+  `val r = Reachability(...); try { ... } finally { r.close() }`. Tests
+  that use `Reachability.shared` don't need to close it.
 
 ## Cost summary
 
