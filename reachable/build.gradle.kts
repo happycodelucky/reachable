@@ -11,6 +11,7 @@
 
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -47,19 +48,25 @@ kotlin {
 
     // --- Apple targets (CLAUDE.md §1) ---------------------------------------
     // Each Apple target gets a static framework binary with a stable bundle id
-    // so SKIE doesn't fall back to the framework name and to give the iOS /
-    // macOS sample apps a consumable artifact via the local SPM path override
-    // documented in iOSApp/README.md. Maven Central distribution publishes the
-    // per-target klibs (iosArm64, iosSimulatorArm64, macosArm64) plus the
-    // `kotlinMultiplatform` metadata module — KMP consumers in another
-    // multiplatform project resolve those automatically; no XCFramework
-    // aggregator is needed for that path.
+    // so SKIE doesn't fall back to the framework name. The XCFramework
+    // aggregator bundles all three slices (iosArm64 device, iosSimulatorArm64,
+    // macosArm64) into a single `Reachable.xcframework` directory at
+    // `build/XCFrameworks/{debug,release}/`. The sample apps under
+    // /iOSApp and /macOSApp consume that XCFramework via the root
+    // `Package.swift` and `.binaryTarget(path: …)` — see iOSApp/README.md.
+    //
+    // Maven Central distribution doesn't use the XCFramework — it publishes
+    // the per-target klibs and `kotlinMultiplatform` metadata; KMP consumers
+    // resolve those automatically. The aggregator exists purely for the
+    // local-dev path that the sample apps depend on.
+    val xcf = XCFramework("Reachable")
     listOf(iosArm64(), iosSimulatorArm64(), macosArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "Reachable"
             isStatic = true
             // Pin the bundle id so SKIE doesn't fall back to the framework name.
             binaryOption("bundleId", "com.happycodelucky.reachable")
+            xcf.add(this)
         }
     }
 

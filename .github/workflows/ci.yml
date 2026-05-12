@@ -45,10 +45,13 @@ jobs:
 
       # `mise run check` runs ktlint + every unit test on every target
       # (iosSimulatorArm64Test, macosArm64Test, testAndroidHostTest).
-      # `mise run build` produces the KMMBridge-consumable XCFramework
-      # (CLAUDE.md §9). The CI version stamp is passed through to Gradle via
-      # ORG_GRADLE_PROJECT_version — the standard env-var form of `-Pversion=…`
-      # so the mise tasks don't need to know CI is the caller.
+      # `mise run build` assembles Reachable.xcframework — the artifact that
+      # the sample apps under /iOSApp and /macOSApp consume via the root
+      # Package.swift. Maven Central publishing is a separate workflow
+      # (.github/workflows/release.yml). The CI version stamp is passed
+      # through to Gradle via ORG_GRADLE_PROJECT_version — the standard
+      # env-var form of `-Pversion=…` so the mise tasks don't need to know
+      # CI is the caller.
       - name: Build, test, and assemble XCFramework
         env:
           ORG_GRADLE_PROJECT_version: ${{ steps.version.outputs.VERSION }}
