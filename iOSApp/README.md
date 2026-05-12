@@ -62,8 +62,9 @@ Kotlin code is:
 2. `mise run spm:dev` (or `./gradlew :reachable:spmDevBuild` from the repo root)
 3. Rebuild the iOSApp target in Xcode
 
-After a `vX.Y.Z` release, the same `Package.swift` is overwritten with a
-remote-binary form pointing at the GitHub Packages-hosted XCFramework zip.
-Downstream apps consume the package via
-`https://github.com/happycodelucky/reachable.git` pinned to a tag, not the
-local path used here.
+The local `Package.swift` is a development-only artifact (gitignored).
+Released versions of Reachable are published to Maven Central as a Kotlin
+Multiplatform artifact, not as a standalone Swift Package — downstream
+apps consume the library from a KMP context. A native Swift Package
+Manager distribution is on the v0.2 plan; see
+[docs/installation.md](../docs/installation.md#apple-side-spm-roadmap).

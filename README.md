@@ -45,8 +45,8 @@ Highlights:
 
 - [Getting started](docs/getting-started.md): three steps from install to
   a UI-bound `Reachability`.
-- [Installation](docs/installation.md): SPM, Gradle, GitHub Packages auth,
-  local development override.
+- [Installation](docs/installation.md): Maven Central, KMP-side Apple
+  consumption, local development override.
 - [Concepts → API design](docs/concepts/api-design.md): the public type,
   the asymmetric factories, why no `Result`.
 - [Concepts → Lifecycle](docs/concepts/lifecycle.md): when to construct,
@@ -247,7 +247,7 @@ Then the task surface:
 mise run check          # ktlint + all unit tests (iOS sim, macOS, Android host)
 mise run build:ios      # iOS device + simulator debug frameworks
 mise run build:macos    # macOS desktop debug framework
-mise run build          # release Reachable.xcframework (SPM-consumable)
+mise run build          # release Reachable.xcframework (sample-app local SPM)
 mise run build:android  # Android AAR
 mise run open:ios       # spm:dev + xcodegen + open iOSApp in Xcode
 mise run open:macos     # spm:dev + xcodegen + open macOSApp in Xcode

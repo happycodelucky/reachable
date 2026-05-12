@@ -30,7 +30,8 @@ invocations still work; mise just ensures everyone runs the same versions.
 
 [CLAUDE.md](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
 is the binding rule set: Kotlin-first dependencies, ARM-only targets, SKIE,
-KMMBridge, the Apple-name casing rule. Read it before opening a PR.
+Maven Central publishing, the Apple-name casing rule. Read it before
+opening a PR.
 
 ## Reporting a bug
 
@@ -101,7 +102,7 @@ docs validation) on every PR.
 
 ## Releasing
 
-Cutting a release publishes simultaneously to GitHub Packages (XCFramework
-zip for SPM) and Maven Central (Android AAR + KMP metadata). The mechanics,
-one-time credential setup, and rotation procedure live in
-[Publishing](publishing.md).
+Releases publish to Maven Central via vanniktech maven-publish, then tag
+the commit and create a GitHub Release with auto-generated notes. The
+mechanics, one-time credential setup, and the dry-run / live-publish
+toggle live in [Publishing](publishing.md).

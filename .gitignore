@@ -43,6 +43,8 @@ spm/
 .venv/
 site/
 docs/api/
+__pycache__/
+*.pyc
 
 # --- Claude Code review-loop artefacts ---
 .claude/findings/

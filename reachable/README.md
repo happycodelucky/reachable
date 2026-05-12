@@ -175,7 +175,7 @@ the full prerequisite list (Xcode, Android SDK).
 mise run check          # ktlint + all unit tests
 mise run build:ios      # iOS device + Apple Silicon simulator debug frameworks
 mise run build:macos    # macOS desktop debug framework
-mise run build          # SPM-consumable Reachable.xcframework
+mise run build          # release Reachable.xcframework (sample-app local SPM)
 mise run build:android  # Android AAR
 ```
 

@@ -1,48 +1,49 @@
 # Publishing
 
-Maintainer-facing runbook for cutting a Reachable release. Aimed at the person
-holding the publish keys — most contributors don't need this page.
+Maintainer-facing runbook for cutting a Reachable release. Aimed at the
+person holding the publish keys; most contributors don't need this page.
 
-Reachable ships through **two distribution channels**, in parallel, from a
-single GitHub Actions workflow:
-
-| Channel | What it carries | Consumed by | Plugin |
-|---|---|---|---|
-| **GitHub Packages** | XCFramework zip | SPM (iOS, iPadOS, macOS) | KMMBridge |
-| **Maven Central** | Android AAR, KMP common metadata, per-target klibs, sources + javadoc jars | Gradle (Android, JVM, KMP) | vanniktech `gradle-maven-publish-plugin` |
-
-The two plugins each own their own Maven repository and their own umbrella
-publish task, so they don't interfere. The release workflow calls them
-sequentially.
+Reachable publishes a single Kotlin Multiplatform artifact to Maven
+Central via vanniktech's
+[`gradle-maven-publish-plugin`](https://github.com/vanniktech/gradle-maven-publish-plugin):
+Android AAR, KMP common metadata, per-target klibs
+(`iosArm64`, `iosSimulatorArm64`, `macosArm64`), and sources + javadoc
+jars. Everything is GPG-signed in-process. A native Swift Package
+Manager distribution is on the v0.2 plan; see
+[Installation](installation.md#apple-side-spm-roadmap).
 
 ## Cutting a release
 
-1. Open the **Actions** tab → **Release** → **Run workflow**.
+1. **Actions → Release → Run workflow.**
 2. Set `version` to the semver string without the `v` prefix (e.g. `0.2.0`).
-   Leave `notes` blank to auto-generate GitHub release notes from commits.
-3. Click **Run workflow**.
+3. Leave `dryRun` at its default (`true`) for the first run.
+4. **Run workflow.**
 
-What happens, in order:
+The dry run uploads to the Central Portal staging area and stops, so the
+artifact set can be reviewed at
+<https://central.sonatype.com/publishing/deployments> before anything is
+released to the public. Click **Publish** in the Portal to release, or
+**Drop** to discard.
 
-1. `:reachable:kmmBridgePublish` builds `Reachable.xcframework`, zips it,
-   uploads to GitHub Packages, regenerates `Package.swift`, commits it back
-   to `main`, and pushes the `vX.Y.Z` tag.
-2. `:reachable:publishAndReleaseToMavenCentral` builds the Android AAR + KMP
-   metadata + klibs, signs everything with GPG, uploads to the Sonatype
-   Central Portal staging area, then closes and releases the deployment
-   automatically.
-3. The workflow uploads the same XCFramework zip + SHA-256 file to the
-   GitHub Release page as a fallback for consumers not using SPM or
-   GitHub Packages.
+Once the staged set looks right, re-run the workflow with `dryRun=false`.
+That path is irreversible: it uploads, closes, and releases the deployment
+in one atomic step.
 
-Within ~30 min of the workflow completing, the release is searchable at
+After a real publish, the workflow tags the head commit as `vX.Y.Z`,
+pushes the tag, and creates a GitHub Release with auto-generated notes
+(commits since the previous tag). The shields.io `Release` badge on the
+README updates within seconds.
+
+Within ~30 min the release is searchable at
 <https://central.sonatype.com/artifact/com.happycodelucky.reachable/reachable>.
+Maven Central indexing into <https://repo1.maven.org/maven2/> usually
+takes a few minutes longer.
 
-**Maven Central releases are permanent.** Sonatype never deletes published
-artifacts. A bad version means cutting a fresh `0.2.1` that supersedes it —
-there is no rollback. Use a `-SNAPSHOT` version for any experimental upload
-(vanniktech auto-routes snapshots to the Central Portal snapshots endpoint,
-which is mutable).
+**Maven Central releases are permanent.** Sonatype never deletes
+published artifacts. A bad version means cutting a fresh `0.2.1` that
+supersedes it; there is no rollback. Use a `-SNAPSHOT` version for any
+experimental upload — vanniktech auto-routes snapshots to the Central
+Portal snapshots endpoint, which is mutable.
 
 ## One-time setup
 

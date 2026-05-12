@@ -63,16 +63,12 @@ enums, `StateFlow<T>` becomes `AsyncSequence<T>`, `suspend fun` becomes
 
 ## Install
 
-Maven (Android, JVM-bound consumers):
+From Maven Central (Android, JVM, Kotlin Multiplatform):
 
 ```kotlin
-implementation("com.happycodelucky.reachable:reachable:0.1.0")
+implementation("com.happycodelucky.reachable:reachable:{{ version }}")
 ```
 
-Swift Package Manager (iOS, macOS):
-
-```swift
-.package(url: "https://github.com/happycodelucky/reachable.git", from: "0.1.0")
-```
-
-Full setup including GitHub Packages auth: [Installation](installation.md).
+Apple consumers come in via Kotlin Multiplatform's iOS / macOS klibs
+published alongside the Android AAR. A native Swift Package Manager
+distribution is planned for v0.2. See [Installation](installation.md).

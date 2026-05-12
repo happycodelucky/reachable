@@ -2,22 +2,31 @@
 
 ## 1. Add the dependency
 
+From Maven Central. Apple consumers come in via Kotlin Multiplatform's
+iOS / macOS klibs (no separate Swift Package Manager artifact in v0.1;
+see [Installation](installation.md#apple-side-spm-roadmap)).
+
 === "Android (Gradle)"
 
     ```kotlin
     // app/build.gradle.kts
     dependencies {
-        implementation("com.happycodelucky.reachable:reachable:0.1.0")
+        implementation("com.happycodelucky.reachable:reachable:{{ version }}")
     }
     ```
 
-=== "iOS / macOS (Swift Package Manager)"
+=== "Kotlin Multiplatform"
 
+    ```kotlin
+    // shared/build.gradle.kts
+    kotlin {
+        sourceSets {
+            commonMain.dependencies {
+                implementation("com.happycodelucky.reachable:reachable:{{ version }}")
+            }
+        }
+    }
     ```
-    .package(url: "https://github.com/happycodelucky/reachable.git", from: "0.1.0")
-    ```
-
-Full setup including GitHub Packages auth: [Installation](installation.md).
 
 ## 2. Get a Reachability handle
 

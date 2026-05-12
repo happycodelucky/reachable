@@ -40,6 +40,24 @@ jobs:
       - name: Install mkdocs toolchain
         run: mise run docs:install
 
+      # Resolve the version for the docs build. The mkdocs-macros plugin
+      # reads REACHABLE_VERSION (see /main.py): on push-to-main builds we
+      # pass the latest GitHub release tag so install snippets render the
+      # real pinned version. PR builds skip this step so previews render
+      # the 'main' fallback — appropriate for unreleased work.
+      - name: Resolve release version
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          if [[ -n "$TAG" ]]; then
+            echo "REACHABLE_VERSION=$TAG" >> "$GITHUB_ENV"
+            echo "Docs will render version: $TAG"
+          else
+            echo "No release tag found; docs will render the 'main' fallback."
+          fi
+
       # Dokka writes aggregated HTML into build/dokka/html and copyDokkaToDocs
       # mirrors it into docs/api/ where mkdocs picks it up.
       - name: Generate Dokka API reference

@@ -1,8 +1,8 @@
 # Changelog
 
-Versions follow [SemVer](https://semver.org/). KMMBridge stamps the released
-version onto the published Maven artifact and the matching SwiftPackage tag.
-Pin to a tag, never to `branch: "main"`.
+Versions follow [SemVer](https://semver.org/). Each release is published
+to Maven Central and tagged on GitHub. Pin to a tag, never to
+`branch: "main"`.
 
 ## Unreleased
 
@@ -64,10 +64,13 @@ Pin to a tag, never to `branch: "main"`.
 
 ### Distribution
 
-- XCFramework published to GitHub Packages via
-  `co.touchlab.kmmbridge.github`; `Package.swift` committed at the repo root
-  by the release workflow.
-- AAR published under `com.happycodelucky.reachable:reachable`.
+- Published to Maven Central as
+  `com.happycodelucky.reachable:reachable` via
+  [vanniktech maven-publish](https://github.com/vanniktech/gradle-maven-publish-plugin).
+  Includes the Android AAR plus the `kotlinMultiplatform` metadata and
+  the `iosArm64`, `iosSimulatorArm64`, `macosArm64` klibs, all signed.
+- A native Swift Package Manager artifact is **not** published in v0.1;
+  see [Installation](installation.md#apple-side-spm-roadmap).
 
 ### Known limitations
 
