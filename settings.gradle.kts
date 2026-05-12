@@ -44,6 +44,14 @@ rootProject.name = "reachable"
 
 include(":reachable")
 
+// :reachable-testing — public, scriptable `FakeReachability` plus the
+// `withFakeReachability { … }` helper that installs/uninstalls it as
+// `Reachability.shared` for the lifetime of a test. Headless KMP module;
+// same targets as `:reachable`; published as a sibling Maven Central
+// artifact (`com.happycodelucky.reachable:reachable-testing`). Consumers
+// wire it on `testImplementation` (or KMP `commonTest` deps).
+include(":reachable-testing")
+
 // --- Sample apps (CLAUDE.md §4) -----------------------------------------------
 // The Android sample is a normal Gradle subproject because Compose + AGP play
 // best inside the same Gradle build that produces the AAR. The iOS and macOS

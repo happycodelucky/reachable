@@ -11,6 +11,7 @@
 
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -47,19 +48,25 @@ kotlin {
 
     // --- Apple targets (CLAUDE.md §1) ---------------------------------------
     // Each Apple target gets a static framework binary with a stable bundle id
-    // so SKIE doesn't fall back to the framework name and to give the iOS /
-    // macOS sample apps a consumable artifact via the local SPM path override
-    // documented in iOSApp/README.md. Maven Central distribution publishes the
-    // per-target klibs (iosArm64, iosSimulatorArm64, macosArm64) plus the
-    // `kotlinMultiplatform` metadata module — KMP consumers in another
-    // multiplatform project resolve those automatically; no XCFramework
-    // aggregator is needed for that path.
+    // so SKIE doesn't fall back to the framework name. The XCFramework
+    // aggregator bundles all three slices (iosArm64 device, iosSimulatorArm64,
+    // macosArm64) into a single `Reachable.xcframework` directory at
+    // `build/XCFrameworks/{debug,release}/`. The sample apps under
+    // /iOSApp and /macOSApp consume that XCFramework via the root
+    // `Package.swift` and `.binaryTarget(path: …)` — see iOSApp/README.md.
+    //
+    // Maven Central distribution doesn't use the XCFramework — it publishes
+    // the per-target klibs and `kotlinMultiplatform` metadata; KMP consumers
+    // resolve those automatically. The aggregator exists purely for the
+    // local-dev path that the sample apps depend on.
+    val xcf = XCFramework("Reachable")
     listOf(iosArm64(), iosSimulatorArm64(), macosArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "Reachable"
             isStatic = true
             // Pin the bundle id so SKIE doesn't fall back to the framework name.
             binaryOption("bundleId", "com.happycodelucky.reachable")
+            xcf.add(this)
         }
     }
 
@@ -117,6 +124,13 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.turbine)
+            // `:reachable-testing` provides the public `FakeReachability`
+            // we use in StateFlowReachabilityTest / NonClosingReachabilityTest.
+            // Conceptually the dependency loop is acceptable: the testing
+            // module `api`s `:reachable`'s `main` configuration, and the
+            // back-edge here is on `commonTest`, not `main` — Gradle resolves
+            // both without a circular `main` dependency.
+            implementation(project(":reachable-testing"))
         }
 
         androidMain.dependencies {
@@ -135,6 +149,7 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.turbine)
+            implementation(project(":reachable-testing"))
         }
     }
 }
@@ -161,6 +176,19 @@ skie {
         // emits .swiftinterface alongside .swiftmodule, satisfying the requirement
         // for both debug and release XCFramework builds.
         produceDistributableFramework()
+    }
+    // Prevent SKIE from copying bundled Swift sources into the klib.
+    //
+    // `Reachability+Shared.swift` uses `extension Reachability` which is only
+    // valid inside the `Reachable` module context (swift_name = "Reachability").
+    // If bundled into the klib, SKIE unpacks and recompiles it in downstream
+    // modules (e.g. `:reachable-testing`) where the type is renamed
+    // `ReachableReachability` (module-prefixed), causing a compile error.
+    // With bundling disabled, SKIE still compiles the Swift sources into the
+    // Reachable.framework binary via its own compile task; only the klib copy
+    // that would trigger re-compilation in downstream modules is suppressed.
+    swiftBundling {
+        enabled.set(false)
     }
 }
 
