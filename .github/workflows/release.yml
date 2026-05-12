@@ -5,6 +5,16 @@ name: Release
 # see git history if you need to restore an SPM-side delivery story for
 # non-KMP iOS / macOS consumers.
 #
+# The runner picks `bumpType` (patch / minor / major); the workflow computes
+# the actual version. The patch component is *always* `GITHUB_RUN_NUMBER` —
+# the monotonic counter for this workflow. Runners never type a patch
+# number; they only decide which axis of the existing version to bump.
+#
+# Examples (latest release = v0.3.7, this is run #42):
+#   bumpType=patch → 0.3.42      (same major.minor, fresh patch)
+#   bumpType=minor → 0.4.42      (bump minor, reset to fresh patch)
+#   bumpType=major → 1.0.42      (bump major, reset minor + patch)
+#
 # `dryRun` defaults to `true` because Maven Central releases are
 # **irreversible** — Sonatype never deletes a published artifact. The dry
 # run uploads to the Central Portal staging area only and stops there,
@@ -14,10 +24,15 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Release version without the v prefix (e.g. 0.2.0)
+      bumpType:
+        description: Which axis to bump (patch is auto-derived from the run number)
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
       dryRun:
         description: Upload to Central staging only; do not auto-release. Default true.
         required: true
@@ -48,6 +63,81 @@ jobs:
           # Full history so `gh release create --generate-notes` can walk
           # commits between the previous tag and this release.
           fetch-depth: 0
+
+      # Compute the version up front so every downstream step references
+      # the same value. The patch is *always* GITHUB_RUN_NUMBER (monotonic
+      # per-workflow counter) — re-running after a failure gets a fresh
+      # patch automatically, avoiding "tag already exists" conflicts.
+      #
+      # Major / minor bumps reset lower components: bumping minor from
+      # 0.3.7 produces 0.4.<run>, not 0.4.7.
+      #
+      # First-release fallback: if no previous tag exists yet, we start
+      # from 0.0.<run>, 0.1.<run>, or 1.0.<run> depending on bumpType.
+      - name: Compute release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUMP_TYPE: ${{ inputs.bumpType }}
+        run: |
+          set -euo pipefail
+
+          # Latest tag, or empty if there are no releases yet.
+          LATEST=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+
+          if [[ -n "$LATEST" ]]; then
+            # Strip the leading `v` if present.
+            BASE=${LATEST#v}
+            IFS='.' read -r MAJOR MINOR _PATCH <<< "$BASE"
+          else
+            echo "No previous release found; starting from 0.0.0 base."
+            MAJOR=0
+            MINOR=0
+            _PATCH=0
+          fi
+
+          case "$BUMP_TYPE" in
+            patch)
+              NEW_MAJOR=$MAJOR
+              NEW_MINOR=$MINOR
+              ;;
+            minor)
+              NEW_MAJOR=$MAJOR
+              NEW_MINOR=$((MINOR + 1))
+              ;;
+            major)
+              NEW_MAJOR=$((MAJOR + 1))
+              NEW_MINOR=0
+              ;;
+            *)
+              echo "::error::Unknown bumpType: $BUMP_TYPE"
+              exit 1
+              ;;
+          esac
+
+          NEW_PATCH=$GITHUB_RUN_NUMBER
+          RELEASE_VERSION="${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
+          RELEASE_TAG="v${RELEASE_VERSION}"
+
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+
+          # Surface the computed version in the run-page summary so the
+          # runner can see it before the irreversible publish step fires.
+          # If something looks wrong, cancel the run from the Actions UI.
+          {
+            echo "## Release plan"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Previous release | \`${LATEST:-(none)}\` |"
+            echo "| Bump type | \`${BUMP_TYPE}\` |"
+            echo "| Patch source | \`GITHUB_RUN_NUMBER\` (${GITHUB_RUN_NUMBER}) |"
+            echo "| **Computed version** | **\`${RELEASE_VERSION}\`** |"
+            echo "| Tag | \`${RELEASE_TAG}\` |"
+            echo "| Dry run? | \`${{ inputs.dryRun }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Computed release version: $RELEASE_VERSION"
 
       # mise pins JDK, gradle, etc. (see /mise.toml). setup-gradle below is
       # layered on top solely for its build / dependency cache.
@@ -92,7 +182,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
         run: |
           ./gradlew :reachable:publishToMavenCentral \
-            -Pversion=${{ inputs.version }} --no-daemon
+            -Pversion=$RELEASE_VERSION --no-daemon
 
       - name: Publish to Maven Central (release — IRREVERSIBLE)
         if: ${{ !inputs.dryRun }}
@@ -103,7 +193,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
         run: |
           ./gradlew :reachable:publishAndReleaseToMavenCentral \
-            -Pversion=${{ inputs.version }} --no-daemon
+            -Pversion=$RELEASE_VERSION --no-daemon
 
       # Only tag + create a GitHub Release on a real publish, not a dry run.
       # The tag must point at the commit that produced the published artifact,
@@ -119,23 +209,22 @@ jobs:
         if: ${{ !inputs.dryRun }}
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v${{ inputs.version }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
 
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists locally; skipping creation."
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists locally; skipping creation."
           else
-            git tag -a "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
+            git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
+            git push origin "$RELEASE_TAG"
           fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping creation."
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; skipping creation."
           else
-            gh release create "$TAG" \
-              --title "$TAG" \
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
               --generate-notes \
               --verify-tag
           fi
@@ -145,10 +234,10 @@ jobs:
           if [[ "${{ inputs.dryRun }}" == "true" ]]; then
             echo "✅ Dry run complete. Review the staged deployment at:"
             echo "   https://central.sonatype.com/publishing/deployments"
-            echo "   Click 'Publish' to release ${{ inputs.version }}, or 'Drop' to discard."
+            echo "   Click 'Publish' to release $RELEASE_VERSION, or 'Drop' to discard."
           else
-            echo "🚀 Released com.happycodelucky.reachable:reachable:${{ inputs.version }} to Maven Central."
-            echo "   Maven Central: https://central.sonatype.com/artifact/com.happycodelucky.reachable/reachable/${{ inputs.version }}"
-            echo "   GitHub Release: https://github.com/happycodelucky/reachable/releases/tag/v${{ inputs.version }}"
+            echo "🚀 Released com.happycodelucky.reachable:reachable:$RELEASE_VERSION to Maven Central."
+            echo "   Maven Central: https://central.sonatype.com/artifact/com.happycodelucky.reachable/reachable/$RELEASE_VERSION"
+            echo "   GitHub Release: https://github.com/happycodelucky/reachable/releases/tag/$RELEASE_TAG"
             echo "   Note: Maven Central indexing can take up to ~30 min to appear in https://repo1.maven.org/maven2/."
           fi
