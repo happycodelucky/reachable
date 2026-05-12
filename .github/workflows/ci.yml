@@ -12,20 +12,25 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # mise pins the JDK, Gradle bootstrap binary, xcodegen, gh, python, and
       # the Swift tooling (see /mise.toml). One install gives CI and local dev
       # the same toolchain. setup-gradle below is layered on top purely for
       # its dependency + build cache — mise has no equivalent.
       - name: Set up mise toolchain
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
         with:
           install: true
           cache: true
 
+      # Intentionally pinned at v5 rather than v6. v6 extracted the
+      # caching engine into a separately-licensed `gradle-actions-caching`
+      # component (commercial Terms of Use). v5 keeps the freely-licensed
+      # caching from v4 *and* runs on Node 24, so it sidesteps both the
+      # Node 20 deprecation warning and the v6 license entanglement.
       - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       # Read major.minor from the in-tree fallback literal in build.gradle.kts
       # (the `getOrElse("X.Y.0-SNAPSHOT")` argument) and stamp the patch with
@@ -60,7 +65,7 @@ jobs:
           mise run build
 
       - name: Upload XCFramework
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Reachable-${{ steps.version.outputs.VERSION }}.xcframework
           path: reachable/build/XCFrameworks/release/Reachable.xcframework
@@ -68,7 +73,7 @@ jobs:
 
       - name: Upload test reports on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-${{ steps.version.outputs.VERSION }}
           path: |

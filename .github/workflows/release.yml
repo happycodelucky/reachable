@@ -72,7 +72,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Full history so `gh release create --generate-notes` can walk
           # commits between the previous tag and this release.
@@ -182,13 +182,16 @@ jobs:
       # mise pins JDK, gradle, etc. (see /mise.toml). setup-gradle below is
       # layered on top solely for its build / dependency cache.
       - name: Set up mise toolchain
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
         with:
           install: true
           cache: true
 
+      # Pinned at v5 rather than v6: v6 moved caching to a commercially-
+      # licensed component. v5 keeps the freely-licensed caching and runs
+      # on Node 24. See .github/workflows/ci.yml for the full rationale.
       - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       # Vanniktech `mavenPublishing { }` exposes two umbrella tasks (see
       # reachable/build.gradle.kts):
