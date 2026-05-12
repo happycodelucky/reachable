@@ -124,6 +124,13 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.turbine)
+            // `:reachable-testing` provides the public `FakeReachability`
+            // we use in StateFlowReachabilityTest / NonClosingReachabilityTest.
+            // Conceptually the dependency loop is acceptable: the testing
+            // module `api`s `:reachable`'s `main` configuration, and the
+            // back-edge here is on `commonTest`, not `main` — Gradle resolves
+            // both without a circular `main` dependency.
+            implementation(project(":reachable-testing"))
         }
 
         androidMain.dependencies {
@@ -142,6 +149,7 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.turbine)
+            implementation(project(":reachable-testing"))
         }
     }
 }
@@ -168,6 +176,19 @@ skie {
         // emits .swiftinterface alongside .swiftmodule, satisfying the requirement
         // for both debug and release XCFramework builds.
         produceDistributableFramework()
+    }
+    // Prevent SKIE from copying bundled Swift sources into the klib.
+    //
+    // `Reachability+Shared.swift` uses `extension Reachability` which is only
+    // valid inside the `Reachable` module context (swift_name = "Reachability").
+    // If bundled into the klib, SKIE unpacks and recompiles it in downstream
+    // modules (e.g. `:reachable-testing`) where the type is renamed
+    // `ReachableReachability` (module-prefixed), causing a compile error.
+    // With bundling disabled, SKIE still compiles the Swift sources into the
+    // Reachable.framework binary via its own compile task; only the klib copy
+    // that would trigger re-compilation in downstream modules is suppressed.
+    swiftBundling {
+        enabled.set(false)
     }
 }
 

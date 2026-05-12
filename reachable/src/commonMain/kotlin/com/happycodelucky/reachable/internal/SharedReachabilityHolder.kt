@@ -18,10 +18,21 @@
  *  - The companion accessor `Reachability.shared` reads
  *    `SharedReachabilityHolder.instance` directly, so the laziness is
  *    transparent to callers.
+ *  - A second, lower-priority slot — [override] — exists for the
+ *    `:reachable-testing` module's `installForTesting` hook (see
+ *    `Reachability.installForTesting`). The override is an overlay over
+ *    the lazy cell, not a replacement: clearing the override returns
+ *    `instance` to the same lazy-initialised production singleton it
+ *    would otherwise have been.
  */
+@file:OptIn(TestingOnly::class)
+
 package com.happycodelucky.reachable.internal
 
 import com.happycodelucky.reachable.Reachability
+import com.happycodelucky.reachable.TestingOnly
+import com.happycodelucky.reachable.TestingOverrideHandle
+import kotlinx.atomicfu.atomic
 
 /**
  * Platform factory for the singleton's underlying instance. On Apple this
@@ -45,12 +56,56 @@ internal expect fun createSharedReachability(): Reachability
  * by replacing it with an atomic reference + manual double-checked
  * locking: the stdlib already does that, correctly, and with less code.
  *
- * **Lifecycle**: the instance is wrapped in [NonClosingReachability], so
- * `Reachability.shared.close()` is a no-op. See that class's KDoc for the
- * full rationale.
+ * **Lifecycle**: the production instance is wrapped in
+ * [NonClosingReachability], so `Reachability.shared.close()` is a no-op.
+ * See that class's KDoc for the full rationale.
+ *
+ * **Test override**: [override] is a separate, atomically-mutable slot
+ * that takes precedence over [lazyInstance] when set. It is mutated only
+ * via [installForTesting], which is itself gated behind the
+ * `@TestingOnly` opt-in marker on the public companion entry point. The
+ * lazy cell is never invalidated by an override — clearing the override
+ * exposes the same singleton instance that production would have seen
+ * without any tests running.
  */
 internal object SharedReachabilityHolder {
-    val instance: Reachability by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+    /**
+     * Production singleton. Lazy because we want construction to happen
+     * on first observation, not on class load (Android's `ContentProvider`
+     * pass for `androidx.startup` should be the typical trigger; on Apple
+     * any `Reachability.shared` read does it).
+     */
+    private val lazyInstance: Reachability by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         NonClosingReachability(createSharedReachability())
+    }
+
+    /**
+     * Test-only override. `kotlinx.atomicfu.atomic` so writes are unconditional
+     * atomic exchanges (`getAndSet`) without `volatile` (CLAUDE.md §3 / §13).
+     * Reads are a single volatile load on JVM, an atomic load on K/N.
+     * Two concurrent installs would cross-contaminate `previous` captures;
+     * the documented test workflow assumes serial install/uninstall.
+     */
+    private val override = atomic<Reachability?>(null)
+
+    /**
+     * Effective value of [Reachability.shared]. Read on every access — there
+     * is no caching of the override choice, so an in-flight test's install /
+     * uninstall is observed by the *next* read of `Reachability.shared`
+     * from the code under test.
+     */
+    val instance: Reachability
+        get() = override.value ?: lazyInstance
+
+    /**
+     * Swap the override slot atomically and return a handle that restores
+     * the previous value. The handle's `uninstall()` is what
+     * `withFakeReachability { … }` in `:reachable-testing` calls in its
+     * `finally`.
+     */
+    @TestingOnly
+    internal fun installForTesting(next: Reachability?): TestingOverrideHandle {
+        val previous = override.getAndSet(next)
+        return TestingOverrideHandle(previous)
     }
 }

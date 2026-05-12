@@ -26,6 +26,13 @@
  * NetworkRequest, NET_CAPABILITY_VALIDATED, and the `getSystemService(Class)`
  * overload are all available on API 23+, so no version checks are needed.
  */
+
+// `StateFlowReachability` is `@TestingOnly` to keep its constructor out of
+// production consumer reach — but `:reachable`'s own platform subclasses are
+// the original consumers. Opt in at the file level so the inheritance is
+// allowed; the opt-in does not leak (`AndroidReachability` itself is `internal`).
+@file:OptIn(TestingOnly::class)
+
 package com.happycodelucky.reachable
 
 import android.content.Context
@@ -144,14 +151,14 @@ internal class AndroidReachability internal constructor() : StateFlowReachabilit
                 network: Network,
                 capabilities: NetworkCapabilities,
             ) {
-                emit(toStatus(capabilities))
+                publish(toStatus(capabilities))
             }
 
             override fun onLost(network: Network) {
                 // The capability stream stops without a final "no internet" event,
                 // so we synthesise one. If a different network is up, the next
                 // `onCapabilitiesChanged` will overwrite this immediately.
-                emit(ReachabilityStatus.Unknown)
+                publish(ReachabilityStatus.Unknown)
             }
         }
 
@@ -164,7 +171,7 @@ internal class AndroidReachability internal constructor() : StateFlowReachabilit
     private fun seedFromActiveNetwork(cm: ConnectivityManager) {
         val active = cm.activeNetwork ?: return
         val caps = cm.getNetworkCapabilities(active) ?: return
-        emit(toStatus(caps))
+        publish(toStatus(caps))
     }
 
     /**

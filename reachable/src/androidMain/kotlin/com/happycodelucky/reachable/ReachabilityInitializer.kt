@@ -36,13 +36,15 @@ import com.happycodelucky.reachable.internal.SharedReachabilityHolder
 internal class ReachabilityInitializer : Initializer<Reachability> {
     override fun create(context: Context): Reachability {
         val shared = Reachability.shared
-        // `shared` is wrapped by `NonClosingReachability` to swallow accidental
-        // close() calls; peel it to reach the `AndroidReachability` we need
-        // to attach. The downcast is safe — on Android the actual factory
-        // (`createSharedReachability` in `SharedReachabilityHolder.android.kt`)
-        // always returns an `AndroidReachability`.
-        val underlying = (shared as NonClosingReachability).unwrap()
-        (underlying as AndroidReachability).attach(context.applicationContext)
+        // `shared` is normally `NonClosingReachability` wrapping `AndroidReachability`.
+        // Guard both downcasts: if a test override was installed before this
+        // initializer ran (possible — the ContentProvider pass happens before
+        // Application.onCreate, but tests may install an override earlier in
+        // the process), `shared` won't be `NonClosingReachability`. In that case
+        // skip attach and return the override as-is; tests own the fake's lifecycle.
+        val nonClosing = shared as? NonClosingReachability ?: return shared
+        val underlying = nonClosing.unwrap() as? AndroidReachability ?: return shared
+        underlying.attach(context.applicationContext)
         return shared
     }
 

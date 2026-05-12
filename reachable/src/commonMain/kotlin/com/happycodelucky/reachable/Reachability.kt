@@ -9,6 +9,36 @@ package com.happycodelucky.reachable
 
 import com.happycodelucky.reachable.internal.SharedReachabilityHolder
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.experimental.ExperimentalObjCName
+import kotlin.native.ObjCName
+
+/**
+ * Opt-in marker for the small `Reachability.shared` override surface used
+ * exclusively by the `:reachable-testing` module
+ * ([com.happycodelucky.reachable.testing.FakeReachability] and
+ * [com.happycodelucky.reachable.testing.withFakeReachability]).
+ *
+ * Direct callers of [Reachability.installForTesting], constructors of
+ * [com.happycodelucky.reachable.internal.StateFlowReachability], or holders
+ * of a [TestingOverrideHandle] must `@OptIn(TestingOnly::class)`. Without
+ * the opt-in the call is a compile-time `ERROR` — the strongest gate
+ * `@RequiresOptIn` supports — so production code cannot silently start
+ * depending on these affordances.
+ *
+ * Test code reaches them indirectly through `:reachable-testing`'s
+ * public helpers, which already file-level-`@OptIn(TestingOnly::class)`.
+ * Consumers wiring `testImplementation` on `reachable-testing` never see
+ * this annotation themselves.
+ */
+@RequiresOptIn(
+    message =
+        "Test-only API. Use :reachable-testing's withFakeReachability { … } " +
+            "or FakeReachability instead of touching this directly.",
+    level = RequiresOptIn.Level.ERROR,
+)
+@Retention(AnnotationRetention.BINARY)
+@MustBeDocumented
+public annotation class TestingOnly
 
 /**
  * Which physical / virtual interface is carrying the active connection.
@@ -257,5 +287,70 @@ public interface Reachability : AutoCloseable {
          */
         public val shared: Reachability
             get() = SharedReachabilityHolder.instance
+
+        /**
+         * Install [override] as the value returned by [shared] for the
+         * duration of a test, or pass `null` to clear a previously installed
+         * override.
+         *
+         * Returns a [TestingOverrideHandle] that captures the *previous*
+         * override value (or `null` when none was installed). Calling
+         * [TestingOverrideHandle.uninstall] restores that previous value —
+         * which means nested installs are LIFO-safe by construction, with no
+         * shared global stack.
+         *
+         * The production singleton's `by lazy(SYNCHRONIZED)` cell is
+         * **never** invalidated by this call. The override is an overlay:
+         * `Reachability.shared` returns `override ?: lazyInstance`. After
+         * the last override is uninstalled, [shared] returns the same
+         * process-lifetime singleton it would have without any tests
+         * running.
+         *
+         * **Not** for production code. Prefer the
+         * `withFakeReachability { … }` helper in `:reachable-testing` over
+         * calling this directly — that helper wraps the install in
+         * exception-safe `try` / `finally` and closes the fake on exit.
+         *
+         * Note: `@TestingOnly` is a Kotlin-compile-time guard only; it
+         * provides no Swift-side enforcement. Swift consumers of the
+         * production `Reachable.framework` can call the ObjC-bridged form
+         * without any compiler warning. Discipline between the production
+         * and testing frameworks is the only Swift-side boundary.
+         *
+         * Renames to Swift `installForTesting(_:)` via SKIE
+         * (companion-object bridging) and the `Reachability+Testing.swift`
+         * extension shipped in `:reachable-testing`.
+         */
+        @TestingOnly
+        @OptIn(ExperimentalObjCName::class)
+        @ObjCName(swiftName = "installForTesting")
+        public fun installForTesting(override: Reachability?): TestingOverrideHandle = SharedReachabilityHolder.installForTesting(override)
+    }
+}
+
+/**
+ * Restore handle returned from [Reachability.installForTesting].
+ *
+ * Uninstalling re-publishes whatever was installed *before* this call —
+ * which may be `null` (no override), the production singleton (after a
+ * top-level install was already in place), or a different fake. Stack-safe.
+ *
+ * Constructor is `internal` so only [SharedReachabilityHolder] can mint
+ * handles; consumers can hold and call them but cannot fabricate one.
+ */
+@TestingOnly
+public class TestingOverrideHandle internal constructor(
+    private val previous: Reachability?,
+) {
+    /**
+     * Restore the previous override (which may be `null` to mean "no
+     * override"). Calling `uninstall()` multiple times restores `previous`
+     * each time — safe in serial test setups, but a second call after
+     * another install has run would overwrite that install's value. Prefer
+     * [withFakeReachability] for nested or exception-prone scenarios, as it
+     * manages the handle lifecycle automatically.
+     */
+    public fun uninstall() {
+        SharedReachabilityHolder.installForTesting(previous)
     }
 }

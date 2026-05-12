@@ -62,8 +62,12 @@ dokka {
 }
 
 dependencies {
-    // Aggregate Dokka HTML from :reachable into the root build (Dokka v2 pattern).
+    // Aggregate Dokka HTML from the published modules into the root build
+    // (Dokka v2 pattern). `:reachable-testing` is a public-API module too —
+    // consumers writing tests want to see the FakeReachability /
+    // withFakeReachability surface documented next to the main library.
     dokka(project(":reachable"))
+    dokka(project(":reachable-testing"))
 }
 
 /**

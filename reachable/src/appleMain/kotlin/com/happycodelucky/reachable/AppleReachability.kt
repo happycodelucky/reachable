@@ -18,7 +18,12 @@
  * Memory: nw_* objects are ARC-managed via the K/N Objective-C runtime
  * integration; no explicit release is required.
  */
-@file:OptIn(ExperimentalForeignApi::class)
+
+// `StateFlowReachability` is `@TestingOnly` to keep its constructor out of
+// production consumer reach — but `:reachable`'s own platform subclasses are
+// the original consumers. Opt in at the file level so the inheritance is
+// allowed; the opt-in does not leak (`AppleReachability` itself is `internal`).
+@file:OptIn(ExperimentalForeignApi::class, TestingOnly::class)
 
 package com.happycodelucky.reachable
 
@@ -76,7 +81,7 @@ internal class AppleReachability : StateFlowReachability() {
                 // practice, but the cinterop signature is nullable. Skip the
                 // (never-observed) null case rather than reach for `!!`
                 // (CLAUDE.md §13: "No `!!`").
-                path?.let { p -> emit(toStatus(p)) }
+                path?.let { p -> publish(toStatus(p)) }
             }
             nw_path_monitor_start(m)
         }

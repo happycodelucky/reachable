@@ -4,13 +4,22 @@
  * Verifies the singleton-wrapping contract: every read delegates to the
  * underlying instance, but `close()` is a no-op so accidental tear-down
  * cannot freeze the singleton.
+ *
+ * Driver instance is the public
+ * [com.happycodelucky.reachable.testing.FakeReachability] from
+ * `:reachable-testing` — same fake consumers use; deletes the local
+ * test-double duplication that previously lived inline.
  */
+@file:OptIn(TestingOnly::class)
+
 package com.happycodelucky.reachable.internal
 
 import app.cash.turbine.test
 import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.ReachabilityStatus
+import com.happycodelucky.reachable.TestingOnly
 import com.happycodelucky.reachable.Transport
+import com.happycodelucky.reachable.testing.FakeReachability
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,21 +28,6 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NonClosingReachabilityTest {
-    /**
-     * Same minimal subclass shape used in [StateFlowReachabilityTest], copied
-     * to keep this file self-contained. Exposes `emit` and tracks `onClose`.
-     */
-    private class FakeReachability : StateFlowReachability() {
-        var onCloseCount = 0
-            private set
-
-        fun publish(s: ReachabilityStatus) = emit(s)
-
-        override fun onClose() {
-            onCloseCount++
-        }
-    }
-
     private val wifi = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered)
     private val cell = ReachabilityStatus(true, Transport.Cellular, Metering.Metered)
     private val constrainedWifi =
@@ -48,9 +42,9 @@ class NonClosingReachabilityTest {
             val wrapped = NonClosingReachability(under)
             wrapped.status.test {
                 assertEquals(ReachabilityStatus.Unknown, awaitItem())
-                under.publish(wifi)
+                under.emit(wifi)
                 assertEquals(wifi, awaitItem())
-                under.publish(cell)
+                under.emit(cell)
                 assertEquals(cell, awaitItem())
             }
         }
@@ -60,7 +54,7 @@ class NonClosingReachabilityTest {
         val under = FakeReachability()
         val wrapped = NonClosingReachability(under)
         assertEquals(ReachabilityStatus.Unknown, wrapped.status.value)
-        under.publish(wifi)
+        under.emit(wifi)
         assertEquals(wifi, wrapped.status.value)
     }
 
@@ -73,11 +67,11 @@ class NonClosingReachabilityTest {
         assertFalse(wrapped.isReachable)
         assertFalse(wrapped.isLowDataMode)
 
-        under.publish(wifi)
+        under.emit(wifi)
         assertTrue(wrapped.isReachable)
         assertFalse(wrapped.isLowDataMode)
 
-        under.publish(constrainedWifi)
+        under.emit(constrainedWifi)
         assertTrue(wrapped.isReachable)
         assertTrue(wrapped.isLowDataMode)
     }
@@ -89,7 +83,7 @@ class NonClosingReachabilityTest {
             val wrapped = NonClosingReachability(under)
             wrapped.reachable.test {
                 assertEquals(false, awaitItem()) // Unknown
-                under.publish(wifi)
+                under.emit(wifi)
                 assertEquals(true, awaitItem())
             }
         }
@@ -101,7 +95,7 @@ class NonClosingReachabilityTest {
             val wrapped = NonClosingReachability(under)
             wrapped.lowDataMode.test {
                 assertEquals(false, awaitItem())
-                under.publish(constrainedWifi)
+                under.emit(constrainedWifi)
                 assertEquals(true, awaitItem())
             }
         }
@@ -115,7 +109,9 @@ class NonClosingReachabilityTest {
         wrapped.close()
         wrapped.close()
         wrapped.close()
-        assertEquals(0, under.onCloseCount)
+        // The wrapper swallows close() entirely — the underlying fake never
+        // sees a call, so its closeCallCount stays at zero.
+        assertEquals(0, under.closeCallCount)
     }
 
     @Test
@@ -127,7 +123,7 @@ class NonClosingReachabilityTest {
             // Underlying is still live — publishing must still propagate.
             wrapped.status.test {
                 assertEquals(ReachabilityStatus.Unknown, awaitItem())
-                under.publish(wifi)
+                under.emit(wifi)
                 assertEquals(wifi, awaitItem())
             }
         }

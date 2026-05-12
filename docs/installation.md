@@ -48,6 +48,63 @@ block changes are needed.
 manifest and merged in at build time. It's a normal-protection permission,
 so no runtime grant is needed.
 
+## Testing support
+
+A companion artifact — `com.happycodelucky.reachable:reachable-testing` —
+ships `FakeReachability` and the `withFakeReachability { }` helper for
+installing it as `Reachability.shared` for the duration of a test. Add it
+as a test dependency:
+
+=== "Android module"
+
+    ```kotlin
+    // app/build.gradle.kts
+    dependencies {
+        implementation("com.happycodelucky.reachable:reachable:{{ version }}")
+        testImplementation("com.happycodelucky.reachable:reachable-testing:{{ version }}")
+    }
+    ```
+
+=== "Kotlin Multiplatform module"
+
+    ```kotlin
+    // shared/build.gradle.kts
+    kotlin {
+        sourceSets {
+            commonMain.dependencies {
+                implementation("com.happycodelucky.reachable:reachable:{{ version }}")
+            }
+            commonTest.dependencies {
+                implementation("com.happycodelucky.reachable:reachable-testing:{{ version }}")
+            }
+        }
+    }
+    ```
+
+The testing artifact does not ship as an XCFramework or a Swift Package —
+it is consumed via KMP klibs from Maven Central, not via SPM.
+
+### Basic usage
+
+```kotlin
+@Test
+fun deviceIsOnline() = runTest {
+    withFakeReachability(
+        initial = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered),
+    ) { fake ->
+        val vm = MyViewModel()      // reads Reachability.shared
+        assertTrue(vm.online)
+
+        fake.setReachable(false)
+        assertFalse(vm.online)
+    }
+}
+```
+
+`withFakeReachability` installs the fake as `Reachability.shared`,
+runs the block, then uninstalls and closes the fake in `finally` — even
+when the block throws.
+
 ## Apple-side SPM (roadmap)
 
 There's no standalone `.xcframework` or `Package.swift` published in v0.1.
