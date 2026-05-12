@@ -206,11 +206,21 @@ mavenPublishing {
     // SonatypeHost.CENTRAL_PORTAL targets the new central.sonatype.com
     // endpoint. Do NOT use SonatypeHost.DEFAULT — that's the legacy
     // s01.oss.sonatype.org OSSRH endpoint, which Sonatype is decommissioning.
-    // `automaticRelease = true` makes `publishAndReleaseToMavenCentral` a
-    // single-shot build + sign + upload + close + release task. Without it,
-    // artifacts land in a "validated" state on the Portal and require a
-    // manual "Publish" click in the web UI.
-    publishToMavenCentral(automaticRelease = true)
+    //
+    // `automaticRelease = false` is intentional and load-bearing. It controls
+    // what `./gradlew :reachable:publishToMavenCentral` does:
+    //   * `false` — uploads to the Central Portal staging area and stops.
+    //     The deployment sits in "validated" state until someone clicks
+    //     Publish (or Drop) in the Portal web UI. This is what makes the
+    //     release workflow's `dryRun=true` branch an actual dry run.
+    //   * `true` — uploads *and* auto-releases on success. Every "dry run"
+    //     becomes an irreversible public publish. Do NOT flip this without
+    //     understanding the cascade in `.github/workflows/release.yml`.
+    //
+    // The `publishAndReleaseToMavenCentral` task is unaffected by this flag —
+    // it always closes & releases the deployment regardless, and the
+    // release workflow uses it on the `dryRun=false` branch.
+    publishToMavenCentral(automaticRelease = false)
 
     // Required by Central — every artifact (jar, aar, klib, module, pom)
     // must carry a detached GPG signature next to it. signAllPublications()

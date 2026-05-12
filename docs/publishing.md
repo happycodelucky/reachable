@@ -85,6 +85,20 @@ artifact set can be reviewed at
 released to the public. Click **Publish** in the Portal to release, or
 **Drop** to discard.
 
+The "stops at staging" behaviour depends on `automaticRelease = false`
+in the `mavenPublishing { }` block in
+[`reachable/build.gradle.kts`](https://github.com/happycodelucky/reachable/blob/main/reachable/build.gradle.kts).
+If that flag is ever flipped to `true`, the dry run silently becomes a
+real publish — vanniktech treats the post-upload "release" step as
+automatic. The flag is load-bearing; do not change it without
+understanding the cascade.
+
+Before either publish step fires, the workflow does a
+`Verify version not already published` check against
+[`maven-metadata.xml`](https://repo1.maven.org/maven2/com/happycodelucky/reachable/reachable/maven-metadata.xml).
+A collision fails the run with a clear message instead of letting
+Sonatype reject the upload with a confusing "staging failed" error.
+
 Once the staged set looks right, re-run the workflow with `dryRun=false`.
 The version will be recomputed with a fresh `GITHUB_RUN_NUMBER`, so the
 publish version won't match the dry-run version — that's fine; only the
