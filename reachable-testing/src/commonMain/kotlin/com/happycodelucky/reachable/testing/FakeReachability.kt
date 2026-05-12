@@ -73,7 +73,7 @@ import kotlin.native.ObjCName
  * `Unknown → initial`.
  */
 @OptIn(ExperimentalObjCName::class)
-@ObjCName("ReachableFakeReachability")
+@ObjCName(name = "ReachableFakeReachability", swiftName = "FakeReachability")
 public class FakeReachability(
     initial: ReachabilityStatus = ReachabilityStatus.Unknown,
 ) : StateFlowReachability() {
@@ -114,7 +114,7 @@ public class FakeReachability(
      * the base class).
      */
     @OptIn(ExperimentalObjCName::class)
-    @ObjCName("emit")
+    @ObjCName(swiftName = "emit")
     public fun emit(status: ReachabilityStatus): Unit = publish(status)
 
     /**

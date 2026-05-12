@@ -230,6 +230,46 @@ changes don't trigger emissions on `reachable`.
 
 ---
 
+## Testing support
+
+A companion artifact ships test fakes so consumers can drive
+`Reachability.shared` in unit tests without a live platform observer:
+
+```kotlin
+// shared/build.gradle.kts
+kotlin {
+    sourceSets {
+        commonTest.dependencies {
+            implementation("com.happycodelucky.reachable:reachable-testing:VERSION")
+        }
+    }
+}
+```
+
+Then from any test:
+
+```kotlin
+@Test
+fun deviceIsOnline() = runTest {
+    withFakeReachability(
+        initial = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered),
+    ) { fake ->
+        val vm = MyViewModel()      // reads Reachability.shared
+        assertTrue(vm.online)
+
+        fake.setReachable(false)
+        assertFalse(vm.online)
+    }
+}
+```
+
+`withFakeReachability` installs the fake as `Reachability.shared`,
+runs the block, then uninstalls and closes the fake in `finally` — even
+when the block throws. See [Installation](docs/installation.md#testing-support)
+for the full dependency snippet and the Gradle coordinate.
+
+---
+
 ## Build and test
 
 [`mise`](https://mise.jdx.dev) pins JDK, Gradle, Python, `xcodegen`, `gh`,

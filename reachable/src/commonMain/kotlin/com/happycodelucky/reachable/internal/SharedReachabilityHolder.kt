@@ -80,9 +80,11 @@ internal object SharedReachabilityHolder {
     }
 
     /**
-     * Test-only override. `kotlinx.atomicfu.atomic` so writes are CAS on
-     * K/N without `volatile` (CLAUDE.md §3 / §13). Reads are a single
-     * volatile load on JVM, an atomic load on K/N.
+     * Test-only override. `kotlinx.atomicfu.atomic` so writes are unconditional
+     * atomic exchanges (`getAndSet`) without `volatile` (CLAUDE.md §3 / §13).
+     * Reads are a single volatile load on JVM, an atomic load on K/N.
+     * Two concurrent installs would cross-contaminate `previous` captures;
+     * the documented test workflow assumes serial install/uninstall.
      */
     private val override = atomic<Reachability?>(null)
 

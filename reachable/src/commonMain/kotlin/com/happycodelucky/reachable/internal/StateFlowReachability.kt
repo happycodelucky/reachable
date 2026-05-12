@@ -154,6 +154,12 @@ public abstract class StateFlowReachability protected constructor() : Reachabili
      *
      * Not called by any other `StateFlowReachability` method — only by
      * [close]. The default implementation does nothing.
+     *
+     * **Timing note:** this hook is called *before* `closed` is set to `true`
+     * and before [onClose] runs. Subclasses must not use the captured count to
+     * gate emissions or to infer `isClosed == true`; under concurrent
+     * observation there is a brief window where an overridden counter reports a
+     * positive value while [publish] has not yet seen the CAS effect.
      */
     protected open fun onCloseInvoked() {}
 

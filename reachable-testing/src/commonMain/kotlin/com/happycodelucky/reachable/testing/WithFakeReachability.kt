@@ -4,8 +4,9 @@
  *
  * Use this helper in preference to calling `installForTesting` directly:
  * it guarantees uninstall on the exception path, closes the fake on exit
- * so leaked collectors freeze rather than drift, and composes cleanly with
- * both non-suspending and suspending tests via `runTest { … }`.
+ * so the supervisor scope is cancelled (freeing any background coroutines
+ * launched against it via `scope.launch { … }`), and composes cleanly
+ * with both non-suspending and suspending tests via `runTest { … }`.
  *
  * There is a single `suspend` overload. Non-suspending tests wrap their
  * assertion body in `runTest { }` — the idiomatic KMP pattern that avoids
@@ -25,8 +26,8 @@ import kotlin.native.ObjCName
 /**
  * Install a fresh [FakeReachability] as `Reachability.shared` for the
  * duration of [block]; restore the previous override (or `null`) on exit;
- * close the fake. Exception-safe: every step in the `finally` runs even
- * when [block] throws.
+ * close the fake so the supervisor scope is cancelled. Exception-safe:
+ * every step in the `finally` runs even when [block] throws.
  *
  * Nested calls are LIFO-safe by construction — each install captures the
  * *previous* override in its handle, so the inner uninstall restores the
@@ -68,6 +69,7 @@ import kotlin.native.ObjCName
  * [FakeReachability.emit] or the convenience setters.
  * @return the value returned from [block].
  */
+@Throws(Throwable::class)
 @OptIn(ExperimentalObjCName::class)
 @ObjCName(swiftName = "withFakeReachability")
 public suspend fun <R> withFakeReachability(

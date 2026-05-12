@@ -311,6 +311,12 @@ public interface Reachability : AutoCloseable {
          * calling this directly — that helper wraps the install in
          * exception-safe `try` / `finally` and closes the fake on exit.
          *
+         * Note: `@TestingOnly` is a Kotlin-compile-time guard only; it
+         * provides no Swift-side enforcement. Swift consumers of the
+         * production `Reachable.framework` can call the ObjC-bridged form
+         * without any compiler warning. Discipline between the production
+         * and testing frameworks is the only Swift-side boundary.
+         *
          * Renames to Swift `installForTesting(_:)` via SKIE
          * (companion-object bridging) and the `Reachability+Testing.swift`
          * extension shipped in `:reachable-testing`.
@@ -338,9 +344,11 @@ public class TestingOverrideHandle internal constructor(
 ) {
     /**
      * Restore the previous override (which may be `null` to mean "no
-     * override"). Idempotent at the holder level — re-uninstalling after
-     * an already-restored handle just re-installs the same `previous`
-     * value, which is a no-op if nothing has changed in between.
+     * override"). Calling `uninstall()` multiple times restores `previous`
+     * each time — safe in serial test setups, but a second call after
+     * another install has run would overwrite that install's value. Prefer
+     * [withFakeReachability] for nested or exception-prone scenarios, as it
+     * manages the handle lifecycle automatically.
      */
     public fun uninstall() {
         SharedReachabilityHolder.installForTesting(previous)

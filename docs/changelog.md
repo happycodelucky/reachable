@@ -69,6 +69,12 @@ to Maven Central and tagged on GitHub. Pin to a tag, never to
   [vanniktech maven-publish](https://github.com/vanniktech/gradle-maven-publish-plugin).
   Includes the Android AAR plus the `kotlinMultiplatform` metadata and
   the `iosArm64`, `iosSimulatorArm64`, `macosArm64` klibs, all signed.
+- Companion artifact `com.happycodelucky.reachable:reachable-testing`
+  published alongside the main artifact. Provides `FakeReachability` and
+  `withFakeReachability { }` for installing a scriptable fake as
+  `Reachability.shared` for the duration of a test. Add as
+  `testImplementation` / `commonTest` — see
+  [Installation → Testing support](installation.md#testing-support).
 - A native Swift Package Manager artifact is **not** published in v0.1;
   see [Installation](installation.md#apple-side-spm-roadmap).
 

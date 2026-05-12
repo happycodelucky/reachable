@@ -117,6 +117,12 @@ class InstallForTestingSemanticsTest {
             // but the LIFO contract test (`nestedInstalls_restoreInLifoOrder`)
             // exercises the analogous case where previous was a sentinel.
             handle2.uninstall()
+            // handle1.previous == null because the slot was empty when
+            // installForTesting(fake1) ran (fresh process state). Calling
+            // uninstall() here is a no-damage no-op — it writes null back to
+            // the override slot, which already holds null after handle2.uninstall().
+            // Kept for symmetry with the install call and to make cleanup intent
+            // explicit rather than relying on the @AfterTest belt-and-braces.
             handle1.uninstall()
         } finally {
             Reachability.installForTesting(null)

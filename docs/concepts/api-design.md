@@ -69,7 +69,7 @@ two equivalent calls, so there isn't one.
 | Reactive Low Data Mode        | `reachability.lowDataMode.collect { }` |
 
 The reactive variants are dedicated `MutableStateFlow`s that the shared
-base writes synchronously alongside `status` from inside `emit()`. Identical
+base writes synchronously alongside `status` on every status update. Identical
 consecutive values are conflated, so transport- or metering-only changes
 don't trigger emissions on `reachable`.
 
