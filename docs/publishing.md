@@ -16,32 +16,66 @@ Manager distribution is on the v0.2 plan; see
 
 1. **Actions → Release → Run workflow.**
 2. Pick `bumpType` — `patch` (default), `minor`, or `major`.
-3. Leave `dryRun` at its default (`true`) for the first run.
-4. **Run workflow.**
+3. Optionally fill `versionSuffix` for a pre-release (`beta`, `preview`,
+   `rc.1`, …). Leave blank for a final release.
+4. Leave `dryRun` at its default (`true`) for the first run.
+5. **Run workflow.**
 
 The version is computed, not specified. The workflow reads the latest
-release tag, applies the chosen bump, and sets the patch component to
-`GITHUB_RUN_NUMBER` — a monotonic per-workflow counter. The runner never
-types a version number.
+release tag, applies the chosen bump, sets the patch component to
+`GITHUB_RUN_NUMBER` (a monotonic per-workflow counter), and appends the
+suffix if one was given. The runner never types a version number.
 
 If the latest release is `v0.3.7` and this is the 42nd run of the release
-workflow, the resulting versions are:
+workflow:
 
-| `bumpType` | Computed version |
-|---|---|
-| `patch` | `0.3.42` |
-| `minor` | `0.4.42` |
-| `major` | `1.0.42` |
+| `bumpType` | `versionSuffix` | Computed version |
+|---|---|---|
+| `patch` | _(empty)_ | `0.3.42` |
+| `minor` | _(empty)_ | `0.4.42` |
+| `major` | _(empty)_ | `1.0.42` |
+| `patch` | `beta` | `0.3.42-beta` |
+| `patch` | `rc.1` | `0.3.42-rc.1` |
+| `minor` | `preview` | `0.4.42-preview` |
 
 The computed version appears in the **Release plan** section of the run
-summary on the Actions UI before any irreversible step fires. If the
-computed version looks wrong (wrong bump type, unexpected base), cancel
-the run and start over.
+summary on the Actions UI before any irreversible step fires. If
+something looks wrong (wrong bump type, mistyped suffix, unexpected
+base), cancel the run and start over.
 
 `GITHUB_RUN_NUMBER` doesn't reset across dry runs and real publishes, so
 patch numbers have visible gaps (a dry run uses one number, the real
 publish uses the next). That's intentional: re-running after a failure
 gets a fresh patch automatically, avoiding "tag already exists" conflicts.
+
+### Version suffix rules
+
+`versionSuffix` is appended after a dash to produce a SemVer pre-release
+version (`MAJOR.MINOR.PATCH-SUFFIX`). The workflow validates the suffix
+against the SemVer 2.0 grammar before any publish: dot-separated lowercase
+alphanumeric segments, hyphens allowed inside a segment. Valid examples:
+
+- `beta`, `preview`, `alpha`, `dev`
+- `rc1`, `rc2`, `rc.1`, `rc.2`
+- `alpha.2.fix`, `beta-1`
+
+Invalid examples (workflow fails with a clear error before publish):
+
+- `BETA`, `Beta` — uppercase not allowed.
+- `-beta`, `.rc`, `rc.` — segments can't start or end with a separator.
+- `beta_1`, `beta+sha` — only alphanumeric and hyphen allowed inside a
+  segment.
+
+Pre-release versions sort *before* their corresponding final release in
+SemVer: `0.3.42-rc.1` is older than `0.3.42`. So when cutting the final
+release after one or more release candidates, just leave `versionSuffix`
+blank — the same `patch`/`minor`/`major` bump produces a clean final
+version.
+
+When the suffix is also used in the previous release (`v0.3.42-rc.1` is
+the latest tag), the workflow strips the suffix before computing the new
+base — i.e. a `patch` bump on top of `v0.3.42-rc.1` produces
+`0.3.<run>`, not `0.3.42-rc.1.<run>`.
 
 ### Dry run, then real publish
 

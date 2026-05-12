@@ -11,9 +11,18 @@ name: Release
 # number; they only decide which axis of the existing version to bump.
 #
 # Examples (latest release = v0.3.7, this is run #42):
-#   bumpType=patch → 0.3.42      (same major.minor, fresh patch)
-#   bumpType=minor → 0.4.42      (bump minor, reset to fresh patch)
-#   bumpType=major → 1.0.42      (bump major, reset minor + patch)
+#   bumpType=patch                             → 0.3.42
+#   bumpType=minor                             → 0.4.42
+#   bumpType=major                             → 1.0.42
+#   bumpType=patch + versionSuffix=beta        → 0.3.42-beta
+#   bumpType=minor + versionSuffix=rc.1        → 0.4.42-rc.1
+#   bumpType=major + versionSuffix=preview     → 1.0.42-preview
+#
+# The optional `versionSuffix` input adds a SemVer pre-release identifier
+# (`MAJOR.MINOR.PATCH-SUFFIX`). Pre-release versions sort before their
+# corresponding final release in semver — `0.3.42-rc.1` is older than
+# `0.3.42`. The suffix is validated against the SemVer 2.0 grammar before
+# anything is published.
 #
 # `dryRun` defaults to `true` because Maven Central releases are
 # **irreversible** — Sonatype never deletes a published artifact. The dry
@@ -33,6 +42,11 @@ on:
           - minor
           - major
         default: patch
+      versionSuffix:
+        description: Optional pre-release suffix appended after a dash (e.g. beta, preview, rc.1)
+        required: false
+        type: string
+        default: ""
       dryRun:
         description: Upload to Central staging only; do not auto-release. Default true.
         required: true
@@ -78,6 +92,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BUMP_TYPE: ${{ inputs.bumpType }}
+          VERSION_SUFFIX: ${{ inputs.versionSuffix }}
         run: |
           set -euo pipefail
 
@@ -85,8 +100,11 @@ jobs:
           LATEST=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
 
           if [[ -n "$LATEST" ]]; then
-            # Strip the leading `v` if present.
+            # Strip the leading `v` and any pre-release suffix (e.g.
+            # v0.3.42-beta → 0.3.42) before parsing — we always bump from
+            # the numeric core, not from a previous pre-release suffix.
             BASE=${LATEST#v}
+            BASE=${BASE%%-*}
             IFS='.' read -r MAJOR MINOR _PATCH <<< "$BASE"
           else
             echo "No previous release found; starting from 0.0.0 base."
@@ -116,6 +134,27 @@ jobs:
 
           NEW_PATCH=$GITHUB_RUN_NUMBER
           RELEASE_VERSION="${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
+
+          # Optional pre-release suffix. Validate against the SemVer 2.0
+          # pre-release identifier grammar: dot-separated alphanumerics and
+          # hyphens, each segment non-empty and not all leading zeros if
+          # purely numeric. The regex below covers the common cases
+          # (beta, preview, rc.1, alpha.2.fix) and rejects whitespace,
+          # leading dashes, uppercase (which Maven Central treats as a
+          # version-comparison foot-gun).
+          if [[ -n "$VERSION_SUFFIX" ]]; then
+            # Each dot-separated segment must start with an alphanumeric
+            # character. Hyphens are allowed inside a segment but not at
+            # its start — otherwise `0.3.42-` + `-beta` produces `0.3.42--beta`,
+            # which version-comparators handle inconsistently.
+            if [[ ! "$VERSION_SUFFIX" =~ ^[0-9a-z][0-9a-z-]*(\.[0-9a-z][0-9a-z-]*)*$ ]]; then
+              echo "::error::versionSuffix '$VERSION_SUFFIX' is not a valid SemVer pre-release identifier."
+              echo "::error::Allowed: dot-separated lowercase alphanumeric segments (hyphens permitted inside a segment). Examples: beta, preview, rc.1, alpha.2.fix."
+              exit 1
+            fi
+            RELEASE_VERSION="${RELEASE_VERSION}-${VERSION_SUFFIX}"
+          fi
+
           RELEASE_TAG="v${RELEASE_VERSION}"
 
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
@@ -132,6 +171,7 @@ jobs:
             echo "| Previous release | \`${LATEST:-(none)}\` |"
             echo "| Bump type | \`${BUMP_TYPE}\` |"
             echo "| Patch source | \`GITHUB_RUN_NUMBER\` (${GITHUB_RUN_NUMBER}) |"
+            echo "| Suffix | \`${VERSION_SUFFIX:-(none)}\` |"
             echo "| **Computed version** | **\`${RELEASE_VERSION}\`** |"
             echo "| Tag | \`${RELEASE_TAG}\` |"
             echo "| Dry run? | \`${{ inputs.dryRun }}\` |"
