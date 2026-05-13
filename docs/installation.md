@@ -90,7 +90,7 @@ it is consumed via KMP klibs from Maven Central, not via SPM.
 @Test
 fun deviceIsOnline() = runTest {
     withFakeReachability(
-        initial = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered),
+        initial = ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false),
     ) { fake ->
         val vm = MyViewModel()      // reads Reachability.shared
         assertTrue(vm.online)
@@ -150,7 +150,7 @@ See [Publishing](publishing.md) for the full local + Maven Central pipeline.
     ```kotlin
     // Singleton path — no setup required.
     val r = Reachability.shared
-    println(r.status.value)   // ReachabilityStatus(reachable=…, transport=…, metering=…)
+    println(r.status.value)   // ReachabilityStatus(isReachable=…, transport=…, isDataMetered=…)
     // r.close() is a no-op on .shared; omit it.
     ```
 
@@ -159,6 +159,6 @@ See [Publishing](publishing.md) for the full local + Maven Central pipeline.
     ```swift
     // Singleton path — no setup required.
     let r = Reachability.shared
-    print(r.status.value!)    // ReachabilityStatus(reachable: …, transport: …, metering: …)
+    print(r.status.value!)    // ReachabilityStatus(isReachable: …, transport: …, isDataMetered: …)
     // r.close() is a no-op on .shared; omit it.
     ```

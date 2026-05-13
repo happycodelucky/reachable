@@ -11,7 +11,6 @@
 
 package com.happycodelucky.reachable.testing
 
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.Reachability
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.TestingOnly
@@ -24,7 +23,7 @@ import kotlin.native.ObjCName
 /**
  * Scriptable fake [Reachability] for tests.
  *
- * Drives [status] / [reachable] / [lowDataMode] through the same
+ * Drives [status] / [reachable] / [dataMetered] through the same
  * [StateFlowReachability] base class as the production Apple / Android
  * implementations, so tests exercise the same conflation and
  * close-after-emit semantics consumers see in production.
@@ -33,16 +32,20 @@ import kotlin.native.ObjCName
  *
  * ```kotlin
  * val fake = FakeReachability(
- *     initial = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered),
+ *     initial = ReachabilityStatus(
+ *         isReachable = true,
+ *         transport = Transport.Wifi,
+ *         isDataMetered = false,
+ *     ),
  * )
  * fake.emit(ReachabilityStatus.Unknown)
  * fake.setReachable(false)
  * fake.setTransport(Transport.Cellular)
- * fake.setMetering(Metering.Metered)
+ * fake.setDataMetered(true)
  * ```
  *
  * The convenience setters compose with the current value —
- * `setReachable(false)` leaves `transport` and `metering` alone. They
+ * `setReachable(false)` leaves `transport` and `isDataMetered` alone. They
  * publish via the same internal `publish` path so StateFlow conflation
  * rules apply.
  *
@@ -63,7 +66,7 @@ import kotlin.native.ObjCName
  *
  * Renames cleanly across the SKIE bridge: in Swift the class reads as
  * `FakeReachability`, with `emit(status:)`, `setReachable(_:)`,
- * `setTransport(_:)`, `setMetering(_:)`, `reset()`, `closeCallCount`,
+ * `setTransport(_:)`, `setDataMetered(_:)`, `reset()`, `closeCallCount`,
  * `wasClosed`.
  *
  * @param initial Seed [ReachabilityStatus]. Defaults to
@@ -119,12 +122,12 @@ public class FakeReachability(
 
     /**
      * Flip the reachable boolean; keep current transport and metering.
-     * Equivalent to `emit(status.value.copy(reachable = reachable))`.
+     * Equivalent to `emit(status.value.copy(isReachable = isReachable))`.
      */
     @OptIn(ExperimentalObjCName::class)
     @ObjCName("setReachable")
-    public fun setReachable(reachable: Boolean) {
-        emit(status.value.copy(reachable = reachable))
+    public fun setReachable(isReachable: Boolean) {
+        emit(status.value.copy(isReachable = isReachable))
     }
 
     /**
@@ -138,13 +141,13 @@ public class FakeReachability(
     }
 
     /**
-     * Swap metering; keep reachable and transport. Equivalent to
-     * `emit(status.value.copy(metering = metering))`.
+     * Flip the data-metered boolean; keep reachable and transport.
+     * Equivalent to `emit(status.value.copy(isDataMetered = isDataMetered))`.
      */
     @OptIn(ExperimentalObjCName::class)
-    @ObjCName("setMetering")
-    public fun setMetering(metering: Metering) {
-        emit(status.value.copy(metering = metering))
+    @ObjCName("setDataMetered")
+    public fun setDataMetered(isDataMetered: Boolean) {
+        emit(status.value.copy(isDataMetered = isDataMetered))
     }
 
     /** Reset to [ReachabilityStatus.Unknown]. Useful between assertion blocks. */

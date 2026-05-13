@@ -46,7 +46,7 @@ override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabi
     val hasInternet  = capabilities.hasCapability(NET_CAPABILITY_INTERNET)
     val hasValidated = capabilities.hasCapability(NET_CAPABILITY_VALIDATED)
     val reachable = hasInternet && hasValidated
-    // …emit ReachabilityStatus(reachable, transport, metering)
+    // …emit ReachabilityStatus(isReachable, transport, isDataMetered)
 }
 ```
 

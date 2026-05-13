@@ -20,7 +20,6 @@
 package com.happycodelucky.reachable.testing
 
 import app.cash.turbine.test
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.Reachability
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.TestingOnly
@@ -35,7 +34,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class WithFakeReachabilityTest {
-    private val wifi = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered)
+    private val wifi =
+        ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false)
 
     @AfterTest
     fun clearOverride() {

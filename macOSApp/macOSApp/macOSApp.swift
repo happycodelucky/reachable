@@ -51,16 +51,16 @@ struct ReachabilityScreen: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text(model.status.reachable ? "Online" : "Offline")
+            Text(model.status.isReachable ? "Online" : "Offline")
                 .font(.largeTitle.bold())
             row("Transport", model.status.transport.label)
-            row("Metering", model.status.metering.label)
+            row("Data Metered", model.status.isDataMetered ? "Yes" : "No")
             Text("Toggle Wi-Fi or plug in Ethernet to see live updates.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
-            Text("(raw) reachable=\(model.status.reachable) transport=\(model.status.transport.label) metering=\(model.status.metering.label)")
+            Text("(raw) isReachable=\(model.status.isReachable) transport=\(model.status.transport.label) isDataMetered=\(model.status.isDataMetered)")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.tertiary)
         }
@@ -85,12 +85,3 @@ private extension Transport {
     }
 }
 
-private extension Metering {
-    var label: String {
-        switch self {
-        case .unmetered: return "Unmetered"
-        case .metered: return "Metered"
-        case .constrained: return "Constrained (Low Data Mode)"
-        }
-    }
-}

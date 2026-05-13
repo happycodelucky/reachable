@@ -16,7 +16,6 @@
  */
 package com.happycodelucky.reachable.internal
 
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.Reachability
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.TestingOnly
@@ -79,17 +78,17 @@ public abstract class StateFlowReachability protected constructor() : Reachabili
     // run before the next `value` write under virtual-time test schedulers.
     // Updating these from inside [publish] keeps the writes causally ordered
     // with `_status` and avoids the race.
-    private val _reachable = MutableStateFlow(_status.value.reachable)
+    private val _reachable = MutableStateFlow(_status.value.isReachable)
     final override val reachable: StateFlow<Boolean> = _reachable.asStateFlow()
 
-    private val _lowDataMode = MutableStateFlow(_status.value.metering == Metering.Constrained)
-    final override val lowDataMode: StateFlow<Boolean> = _lowDataMode.asStateFlow()
+    private val _dataMetered = MutableStateFlow(_status.value.isDataMetered)
+    final override val dataMetered: StateFlow<Boolean> = _dataMetered.asStateFlow()
 
     final override val isReachable: Boolean
         get() = _reachable.value
 
-    final override val isLowDataMode: Boolean
-        get() = _lowDataMode.value
+    final override val isDataMetered: Boolean
+        get() = _dataMetered.value
 
     private val closed = atomic(false)
 
@@ -126,8 +125,8 @@ public abstract class StateFlowReachability protected constructor() : Reachabili
         // are conflating, so identical successive values are dropped — a
         // transport-only change publishes to `_status` but neither derived flow
         // observes a new emission.
-        _reachable.value = next.reachable
-        _lowDataMode.value = next.metering == Metering.Constrained
+        _reachable.value = next.isReachable
+        _dataMetered.value = next.isDataMetered
     }
 
     final override fun close() {

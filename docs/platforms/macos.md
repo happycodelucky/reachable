@@ -73,8 +73,7 @@ app:
   `NSApplicationDelegateAdaptor` for AppKit-bridged apps. Both work; the
   construction point varies.
 - macOS Low Data Mode is set per-Wi-Fi network in System Settings → Network
-  → Wi-Fi → Details. Toggle it to trigger `Metering.Constrained` emissions
-  manually.
+  → Wi-Fi → Details. Enabling it sets `isDataMetered = true`.
 
 Using `Reachability.shared` (recommended — no property needed):
 

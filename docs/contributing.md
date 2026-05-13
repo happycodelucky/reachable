@@ -42,7 +42,7 @@ Open an issue with:
    portal, Low Data Mode, etc.).
 3. The library version or commit SHA.
 4. A short snippet showing expected vs observed behavior. Including the raw
-   `ReachabilityStatus` value (`reachable=… transport=… metering=…`) is
+   `ReachabilityStatus` value (`isReachable=… transport=… isDataMetered=…`) is
    usually enough.
 
 VPN-over-Wi-Fi, multi-SIM, and metered-Wi-Fi on Android are corners worth

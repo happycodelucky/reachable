@@ -19,7 +19,7 @@ fun ConnectivityBanner() {
     // Reachability.shared is the process-lifetime singleton — no remember,
     // no context, no Application subclass required.
     val status by Reachability.shared.status.collectAsStateWithLifecycle()
-    if (!status.reachable) {
+    if (!status.isReachable) {
         Surface(
             color = MaterialTheme.colorScheme.errorContainer,
             modifier = Modifier.fillMaxWidth(),
@@ -58,7 +58,7 @@ pass it as a parameter:
 @Composable
 fun ConnectivityBanner(reachability: Reachability) {
     val status by reachability.status.collectAsStateWithLifecycle()
-    if (!status.reachable) {
+    if (!status.isReachable) {
         Surface(
             color = MaterialTheme.colorScheme.errorContainer,
             modifier = Modifier.fillMaxWidth(),
@@ -116,7 +116,7 @@ class ConnectivityViewModel(reachability: Reachability) : ViewModel() {
 @Composable
 fun ConnectivityBanner(viewModel: ConnectivityViewModel = viewModel()) {
     val status by viewModel.status.collectAsStateWithLifecycle()
-    if (!status.reachable) Text("You're offline")
+    if (!status.isReachable) Text("You're offline")
 }
 ```
 
@@ -136,16 +136,11 @@ configuration change doesn't drop and re-establish the subscription.
   keeps collecting even when the activity is STOPPED. The library's
   StateFlow is cheap to keep alive, but it's still wasteful. Prefer the
   lifecycle-aware variant.
-- **Branching on `metering` and forgetting `Constrained`.** Kotlin's `when`
-  is exhaustive on enums. Treat `Constrained` as never-emitted on Android
-  and collapse it into the `Metered` branch:
+- **Reading metered state.** Use the boolean `status.isDataMetered` directly —
+  no enum branching needed:
 
   ```kotlin
-  when (status.metering) {
-      Metering.Unmetered    -> showHighDataPrompts()
-      Metering.Metered,
-      Metering.Constrained  -> hideHighDataPrompts()
-  }
+  if (status.isDataMetered) hideHighDataPrompts() else showHighDataPrompts()
   ```
 
 ## Synchronous read
@@ -154,7 +149,7 @@ For a one-off without recomposition:
 
 ```kotlin
 val now: ReachabilityStatus = reachability.status.value
-if (now.reachable) {
+if (now.isReachable) {
     // …
 }
 ```

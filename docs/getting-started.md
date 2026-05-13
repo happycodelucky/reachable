@@ -104,7 +104,7 @@ singleton's lifetime is the process. Use the factories above when you need
     fun ConnectivityBanner() {
         // Use Reachability.shared directly — no parameter plumbing needed.
         val status by Reachability.shared.status.collectAsStateWithLifecycle()
-        if (!status.reachable) {
+        if (!status.isReachable) {
             Text("You're offline")
         }
     }
@@ -132,16 +132,16 @@ singleton's lifetime is the process. Use the factories above when you need
 
 ### Single-axis shortcuts
 
-`isReachable` and `isLowDataMode` read directly off the latest status without
-unpacking it. The matching `reachable` and `lowDataMode` StateFlows give you
+`isReachable` and `isDataMetered` read directly off the latest status without
+unpacking it. The matching `reachable` and `dataMetered` StateFlows give you
 the same values as a Flow, conflated so you only see real transitions.
 
 ```kotlin
 if (reachability.isReachable) { /* online */ }
-if (reachability.isLowDataMode) { /* defer large transfers */ }
+if (reachability.isDataMetered) { /* defer large transfers */ }
 
 reachability.reachable.collect { online -> /* … */ }
-reachability.lowDataMode.collect { isOn -> /* … */ }
+reachability.dataMetered.collect { isMetered -> /* … */ }
 ```
 
 See [Concepts → API design](concepts/api-design.md#single-axis-shortcuts).
@@ -157,10 +157,10 @@ when (status.transport) {
     Transport.None      -> { /* not reachable */ }
 }
 
-when (status.metering) {
-    Metering.Unmetered    -> { /* prefetch, autoplay, etc. */ }
-    Metering.Metered      -> { /* defer large transfers */ }
-    Metering.Constrained  -> { /* Apple-only — Low Data Mode active */ }
+if (status.isDataMetered) {
+    // defer large transfers — cellular, hotspot, or Low Data Mode
+} else {
+    // prefetch, autoplay, etc.
 }
 ```
 

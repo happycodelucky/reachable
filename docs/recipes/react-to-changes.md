@@ -12,7 +12,7 @@ channel, throttling reactions on flaky networks.
 
     ```kotlin
     suspend fun waitForOnline(reachability: Reachability) {
-        reachability.status.first { it.reachable }
+        reachability.status.first { it.isReachable }
     }
 
     coroutineScope.launch {
@@ -26,7 +26,7 @@ channel, throttling reactions on flaky networks.
     ```swift
     func waitForOnline(_ reachability: any Reachability) async throws {
         for try await status in reachability.status {
-            if status.reachable { return }
+            if status.isReachable { return }
         }
     }
 
@@ -44,7 +44,7 @@ suspends until the next emission with `reachable = true`.
 
 `StateFlow` already conflates identical consecutive values, so `collect { }`
 only sees real changes. To react only when the `reachable` axis flips,
-ignoring transport and metering churn, use the
+ignoring transport or metered-state churn, use the
 [single-axis shortcut](../concepts/api-design.md#single-axis-shortcuts):
 
 ```kotlin
@@ -60,16 +60,13 @@ and a late-joining collector immediately sees the current value. Don't
 re-implement it manually with `.map { … }.distinctUntilChanged()` on top of
 `status`.
 
-The same pattern applies to Low Data Mode:
+The same pattern applies to the metered signal:
 
 ```kotlin
-reachability.lowDataMode.collect { isOn ->
-    if (isOn) deferLargeTransfersUntilUnconstrained()
+reachability.dataMetered.collect { isMetered ->
+    if (isMetered) deferLargeTransfers()
 }
 ```
-
-`lowDataMode` is always `false` on Android. See
-[Concepts → API design](../concepts/api-design.md#meteringconstrained-is-apple-only).
 
 ## Detect transport changes for analytics
 
@@ -95,7 +92,7 @@ val job = launch {
 }
 
 reachability.status
-    .first { !it.reachable }
+    .first { !it.isReachable }
     .also {
         job.cancel(CancellationException("Lost connectivity"))
     }
@@ -107,7 +104,7 @@ With structured concurrency:
 coroutineScope {
     val uploadJob = launch { runLongUploadOrSync() }
     launch {
-        reachability.status.first { !it.reachable }
+        reachability.status.first { !it.isReachable }
         uploadJob.cancel("Lost connectivity")
     }
 }
@@ -120,7 +117,7 @@ events or toasts, debounce:
 
 ```kotlin
 reachability.status
-    .map { it.reachable }
+    .map { it.isReachable }
     .distinctUntilChanged()
     .debounce(500.milliseconds)
     .collect { isReachable -> showToast(if (isReachable) "Online" else "Offline") }

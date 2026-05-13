@@ -4,7 +4,7 @@
 // bridges as a Swift `AsyncSequence`) and renders the live ReachabilityStatus.
 // Toggle airplane mode or switch between Wi-Fi and cellular in Settings to
 // see transitions arrive in real time. Enable Low Data Mode in
-// Settings → Cellular → Cellular Data Options to see Metering.constrained.
+// Settings → Cellular → Cellular Data Options to flip isDataMetered.
 //
 // The Reachability handle is owned by an `@MainActor` view-model held as a
 // `@StateObject` so it survives view re-creation. The view-model creates one
@@ -59,16 +59,16 @@ struct ReachabilityScreen: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text(model.status.reachable ? "Online" : "Offline")
+            Text(model.status.isReachable ? "Online" : "Offline")
                 .font(.largeTitle.bold())
             row("Transport", model.status.transport.label)
-            row("Metering", model.status.metering.label)
+            row("Data Metered", model.status.isDataMetered ? "Yes" : "No")
             Text("Toggle airplane mode or switch networks to see live updates.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
-            Text("(raw) reachable=\(model.status.reachable) transport=\(model.status.transport.label) metering=\(model.status.metering.label)")
+            Text("(raw) isReachable=\(model.status.isReachable) transport=\(model.status.transport.label) isDataMetered=\(model.status.isDataMetered)")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.tertiary)
         }
@@ -96,12 +96,3 @@ private extension Transport {
     }
 }
 
-private extension Metering {
-    var label: String {
-        switch self {
-        case .unmetered: return "Unmetered"
-        case .metered: return "Metered"
-        case .constrained: return "Constrained (Low Data Mode)"
-        }
-    }
-}

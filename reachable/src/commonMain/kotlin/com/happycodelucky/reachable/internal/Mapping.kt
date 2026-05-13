@@ -8,7 +8,6 @@
  */
 package com.happycodelucky.reachable.internal
 
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.Transport
 
@@ -70,14 +69,16 @@ internal fun mapApplePath(
             cellular = cellular,
             other = other,
         )
-    val metering =
-        when {
-            !satisfied -> Metering.Unmetered
-            constrained -> Metering.Constrained
-            expensive -> Metering.Metered
-            else -> Metering.Unmetered
-        }
-    return ReachabilityStatus(reachable = satisfied, transport = transport, metering = metering)
+    // Low Data Mode (`constrained`) folds into `isDataMetered` alongside
+    // `expensive`. A consumer who needs to distinguish the two signals can
+    // read `transport == Cellular` for the cellular-vs-Wi-Fi half; the rare
+    // "strictly Low Data Mode" case is intentionally not exposed.
+    val isDataMetered = satisfied && (constrained || expensive)
+    return ReachabilityStatus(
+        isReachable = satisfied,
+        transport = transport,
+        isDataMetered = isDataMetered,
+    )
 }
 
 /**
@@ -89,8 +90,8 @@ internal fun mapApplePath(
  * means "the network claims to provide internet"; only `VALIDATED` means
  * Android's connectivity probe has actually reached a public endpoint.
  *
- * [Metering.Constrained] is never emitted on Android; the platform has no
- * direct equivalent of Apple's Low Data Mode signal.
+ * Android has no equivalent of Apple's Low Data Mode signal; on Android,
+ * `isDataMetered` is purely a function of the metered capability bits.
  *
  * @param hasInternet `caps.hasCapability(NET_CAPABILITY_INTERNET)`
  * @param hasValidated `caps.hasCapability(NET_CAPABILITY_VALIDATED)`
@@ -121,7 +122,10 @@ internal fun mapAndroidCapabilities(
             cellular = hasCellular,
             other = false,
         )
-    val metering =
-        if (notMetered || temporarilyNotMetered) Metering.Unmetered else Metering.Metered
-    return ReachabilityStatus(reachable = reachable, transport = transport, metering = metering)
+    val isDataMetered = reachable && !(notMetered || temporarilyNotMetered)
+    return ReachabilityStatus(
+        isReachable = reachable,
+        transport = transport,
+        isDataMetered = isDataMetered,
+    )
 }

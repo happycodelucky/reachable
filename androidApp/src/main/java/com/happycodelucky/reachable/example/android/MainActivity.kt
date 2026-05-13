@@ -64,12 +64,12 @@ private fun ReachabilityScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = if (status.reachable) "Online" else "Offline",
+            text = if (status.isReachable) "Online" else "Offline",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
         )
         StatusRow("Transport", status.transport.name)
-        StatusRow("Metering", status.metering.name)
+        StatusRow("Data Metered", if (status.isDataMetered) "Yes" else "No")
         Text(
             text = "Toggle airplane mode or switch networks to see live updates.",
             style = MaterialTheme.typography.bodySmall,
@@ -95,6 +95,6 @@ private fun StatusRow(
 }
 
 private fun raw(status: ReachabilityStatus): String =
-    "reachable=${status.reachable} " +
+    "isReachable=${status.isReachable} " +
         "transport=${status.transport} " +
-        "metering=${status.metering}"
+        "isDataMetered=${status.isDataMetered}"

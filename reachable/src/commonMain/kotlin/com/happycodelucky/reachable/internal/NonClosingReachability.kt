@@ -53,14 +53,14 @@ internal class NonClosingReachability(
     override val isReachable: Boolean
         get() = delegate.isReachable
 
-    override val isLowDataMode: Boolean
-        get() = delegate.isLowDataMode
+    override val isDataMetered: Boolean
+        get() = delegate.isDataMetered
 
     override val reachable: StateFlow<Boolean>
         get() = delegate.reachable
 
-    override val lowDataMode: StateFlow<Boolean>
-        get() = delegate.lowDataMode
+    override val dataMetered: StateFlow<Boolean>
+        get() = delegate.dataMetered
 
     /**
      * Intentional no-op — see the class KDoc for the lifecycle rationale.

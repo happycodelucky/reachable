@@ -162,7 +162,7 @@ import com.happycodelucky.reachable.Reachability
 @Composable
 fun ConnectivityBanner() {
     val status by Reachability.shared.status.collectAsStateWithLifecycle()
-    if (!status.reachable) {
+    if (!status.isReachable) {
         Text("You're offline")
     }
 }
@@ -201,12 +201,13 @@ normal-protection permission, so no runtime grant is needed.
 | Captive-portal handling          | OS-internal probe                  | OS-internal probe                  | `NET_CAPABILITY_VALIDATED`              |
 | `Transport.Wifi` / `Cellular`    | yes                                | yes                                | yes                                     |
 | `Transport.Ethernet`             | n/a                                | **falls through to `Other`** (cinterop gap) | yes (`TRANSPORT_ETHERNET`)              |
-| `Metering.Metered`               | `nw_path_is_expensive`             | `nw_path_is_expensive`             | `!NET_CAPABILITY_NOT_METERED`           |
-| `Metering.Constrained`           | `nw_path_is_constrained` (Low Data Mode) | `nw_path_is_constrained` (Low Data Mode) | **never emitted** (no equivalent capability) |
+| `isDataMetered = true`           | `nw_path_is_expensive \|\| nw_path_is_constrained` | `nw_path_is_expensive \|\| nw_path_is_constrained` | `!(NET_CAPABILITY_NOT_METERED \|\| TEMPORARILY_NOT_METERED)` |
 | Status seeded synchronously      | no (first emission within tens of ms) | no                                 | **yes** (from `activeNetwork`)          |
 
-The Apple-only `Metering.Constrained` and the macOS Ethernet cinterop gap
-are documented in
+Apple's Low Data Mode signal (`nw_path_is_constrained`) folds into
+`isDataMetered` alongside `nw_path_is_expensive`; there's no separate
+"Low Data Mode" axis in the public API. The macOS Ethernet cinterop gap
+is documented in
 [Concepts → Validated vs available](docs/concepts/validated-vs-available.md).
 
 ---
@@ -218,15 +219,15 @@ unpack `status.value` for a one-line read:
 
 ```kotlin
 reachability.isReachable      // sync online check
-reachability.isLowDataMode    // sync Low Data Mode check (always false on Android)
+reachability.isDataMetered    // sync metered-path check
 
 reachability.reachable        // StateFlow<Boolean>, conflated, online/offline only
-reachability.lowDataMode      // StateFlow<Boolean>, conflated, Low Data Mode only
+reachability.dataMetered      // StateFlow<Boolean>, conflated, metered/unmetered only
 ```
 
 The reactive variants are dedicated `MutableStateFlow`s the library
-updates synchronously alongside `status` — transport- or metering-only
-changes don't trigger emissions on `reachable`.
+updates synchronously alongside `status` — transport-only changes don't
+trigger emissions on `reachable` or `dataMetered`.
 
 ---
 
@@ -252,7 +253,11 @@ Then from any test:
 @Test
 fun deviceIsOnline() = runTest {
     withFakeReachability(
-        initial = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered),
+        initial = ReachabilityStatus(
+            isReachable = true,
+            transport = Transport.Wifi,
+            isDataMetered = false,
+        ),
     ) { fake ->
         val vm = MyViewModel()      // reads Reachability.shared
         assertTrue(vm.online)

@@ -9,16 +9,16 @@ covers how to build on that, and what not to build on top of it.
 When the device is on a captive-portal Wi-Fi where the user hasn't
 authenticated:
 
-- Android: `NET_CAPABILITY_VALIDATED` is absent, so `reachable = false`.
+- Android: `NET_CAPABILITY_VALIDATED` is absent, so `isReachable = false`.
 - Apple: `nw_path_get_status(path)` returns `nw_path_status_unsatisfied` or
-  `nw_path_status_requires_connection`, so `reachable = false`.
+  `nw_path_status_requires_connection`, so `isReachable = false`.
 
 Treat that the same as offline:
 
 ```kotlin
 when {
-    !status.reachable -> showOfflineState()
-    status.metering == Metering.Constrained -> showLowDataState()
+    !status.isReachable -> showOfflineState()
+    status.isDataMetered -> showMeteredState()
     else -> showFullExperience()
 }
 ```
@@ -36,7 +36,7 @@ transition; no special handling needed.
 
 ```kotlin
 reachability.status
-    .map { it.reachable }
+    .map { it.isReachable }
     .distinctUntilChanged()
     .collect { isReachable ->
         if (isReachable) syncQueue.flush()
@@ -46,7 +46,7 @@ reachability.status
 ## Edge case: "online" but DNS is failing
 
 If a network passes `INTERNET + VALIDATED` but its DNS is broken for your
-domain specifically, Reachable still reports `reachable = true`. That's
+domain specifically, Reachable still reports `isReachable = true`. That's
 correct: Reachable answers "can the device reach the public internet?",
 not "can your app's endpoints resolve and respond?".
 
@@ -59,7 +59,7 @@ class BackendReachability(
     private val httpClient: HttpClient,
 ) {
     val available: Flow<Boolean> = reachability.status
-        .map { it.reachable }
+        .map { it.isReachable }
         .distinctUntilChanged()
         .map { osReachable ->
             if (!osReachable) false

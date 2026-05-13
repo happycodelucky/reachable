@@ -91,12 +91,11 @@ Construction:
 
 | Reachable field        | NetworkCapabilities call                                                     |
 |------------------------|------------------------------------------------------------------------------|
-| `reachable`            | `hasCapability(NET_CAPABILITY_INTERNET) && hasCapability(NET_CAPABILITY_VALIDATED)` |
+| `isReachable`          | `hasCapability(NET_CAPABILITY_INTERNET) && hasCapability(NET_CAPABILITY_VALIDATED)` |
 | `transport.Wifi`       | `hasTransport(TRANSPORT_WIFI)`                                               |
 | `transport.Cellular`   | `hasTransport(TRANSPORT_CELLULAR)`                                           |
 | `transport.Ethernet`   | `hasTransport(TRANSPORT_ETHERNET)`                                           |
-| `metering.Unmetered`   | `hasCapability(NET_CAPABILITY_NOT_METERED)` or `hasCapability(NET_CAPABILITY_TEMPORARILY_NOT_METERED)` |
-| `metering.Constrained` | never emitted on Android — no equivalent capability                          |
+| `isDataMetered`        | `!hasCapability(NET_CAPABILITY_NOT_METERED) && !hasCapability(NET_CAPABILITY_TEMPORARILY_NOT_METERED)` |
 
 `onLost(network)` synthesises a "no internet" emission because the
 capability stream stops without a final terminator. If a different network
@@ -137,7 +136,7 @@ Collectors observe on whatever dispatcher they collect on. From Compose:
 @Composable
 fun ConnectivityBanner(reachability: Reachability) {
     val status by reachability.status.collectAsStateWithLifecycle()
-    if (!status.reachable) Text("You're offline")
+    if (!status.isReachable) Text("You're offline")
 }
 ```
 

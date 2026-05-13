@@ -36,7 +36,7 @@ struct ConnectivityBanner: View {
     @StateObject var model: ConnectivityModel = ConnectivityModel()
 
     var body: some View {
-        if !model.status.reachable {
+        if !model.status.isReachable {
             Label("Offline", systemImage: "wifi.slash")
                 .foregroundStyle(.red)
         }
@@ -80,7 +80,7 @@ struct ConnectivityBanner: View {
     @StateObject var model: ConnectivityModel
 
     var body: some View {
-        if !model.status.reachable {
+        if !model.status.isReachable {
             Label("Offline", systemImage: "wifi.slash")
                 .foregroundStyle(.red)
         }
@@ -129,10 +129,8 @@ struct ReachableExampleApp: App {
   case .none:               badge.color = .red   // works here — type inferred
   }
   ```
-- **Branching on `metering` and forgetting `.constrained`.** Swift switches
-  are exhaustive. Three arms expecting `unmetered` and `metered` only
-  won't compile — add `case .constrained:` and treat it as a stricter
-  form of `metered`.
+- **Reading metered state.** `isDataMetered` is a `Bool` — no `switch`
+  needed. Use `if status.isDataMetered { … }` directly.
 
 ## Reading the current value without subscribing
 
@@ -140,7 +138,7 @@ For a one-off read:
 
 ```swift
 let now = reachability.status.value!
-if now.reachable {
+if now.isReachable {
     // …
 }
 ```

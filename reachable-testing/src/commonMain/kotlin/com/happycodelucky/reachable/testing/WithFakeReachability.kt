@@ -41,7 +41,11 @@ import kotlin.native.ObjCName
  * @Test
  * fun deviceIsOnline() = runTest {
  *     withFakeReachability(
- *         initial = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered),
+ *         initial = ReachabilityStatus(
+ *             isReachable = true,
+ *             transport = Transport.Wifi,
+ *             isDataMetered = false,
+ *         ),
  *     ) { fake ->
  *         val vm = MyViewModel()           // reads Reachability.shared
  *         assertTrue(vm.online)
@@ -55,7 +59,13 @@ import kotlin.native.ObjCName
  * @Test
  * fun reachableFlowReactsToFakeEmissions() = runTest {
  *     withFakeReachability { fake ->
- *         fake.emit(ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered))
+ *         fake.emit(
+ *             ReachabilityStatus(
+ *                 isReachable = true,
+ *                 transport = Transport.Wifi,
+ *                 isDataMetered = false,
+ *             ),
+ *         )
  *         Reachability.shared.reachable.test {
  *             assertEquals(true, awaitItem())
  *         }

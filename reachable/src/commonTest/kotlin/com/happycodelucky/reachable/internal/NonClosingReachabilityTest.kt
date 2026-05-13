@@ -15,7 +15,6 @@
 package com.happycodelucky.reachable.internal
 
 import app.cash.turbine.test
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.TestingOnly
 import com.happycodelucky.reachable.Transport
@@ -28,10 +27,12 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NonClosingReachabilityTest {
-    private val wifi = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered)
-    private val cell = ReachabilityStatus(true, Transport.Cellular, Metering.Metered)
-    private val constrainedWifi =
-        ReachabilityStatus(true, Transport.Wifi, Metering.Constrained)
+    private val wifi =
+        ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false)
+    private val cell =
+        ReachabilityStatus(isReachable = true, transport = Transport.Cellular, isDataMetered = true)
+    private val meteredWifi =
+        ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = true)
 
     // ---- delegation ------------------------------------------------------
 
@@ -59,21 +60,25 @@ class NonClosingReachabilityTest {
     }
 
     @Test
-    fun isReachable_andIsLowDataMode_delegate() {
+    fun isReachable_andIsDataMetered_delegate() {
         val under = FakeReachability()
         val wrapped = NonClosingReachability(under)
 
-        // Pre-emission: Unknown is not reachable, not low-data.
+        // Pre-emission: Unknown is not reachable, not data-metered.
         assertFalse(wrapped.isReachable)
-        assertFalse(wrapped.isLowDataMode)
+        assertFalse(wrapped.isDataMetered)
 
         under.emit(wifi)
         assertTrue(wrapped.isReachable)
-        assertFalse(wrapped.isLowDataMode)
+        assertFalse(wrapped.isDataMetered)
 
-        under.emit(constrainedWifi)
+        under.emit(cell)
         assertTrue(wrapped.isReachable)
-        assertTrue(wrapped.isLowDataMode)
+        assertTrue(wrapped.isDataMetered)
+
+        under.emit(meteredWifi)
+        assertTrue(wrapped.isReachable)
+        assertTrue(wrapped.isDataMetered)
     }
 
     @Test
@@ -89,13 +94,13 @@ class NonClosingReachabilityTest {
         }
 
     @Test
-    fun lowDataModeFlow_delegates() =
+    fun dataMeteredFlow_delegates() =
         runTest {
             val under = FakeReachability()
             val wrapped = NonClosingReachability(under)
-            wrapped.lowDataMode.test {
+            wrapped.dataMetered.test {
                 assertEquals(false, awaitItem())
-                under.emit(constrainedWifi)
+                under.emit(cell)
                 assertEquals(true, awaitItem())
             }
         }

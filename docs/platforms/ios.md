@@ -58,16 +58,15 @@ For each `nw_path_t` the update handler receives:
 
 | Reachable field        | Cinterop call                                                       |
 |------------------------|---------------------------------------------------------------------|
-| `reachable`            | `nw_path_get_status(path) == nw_path_status_satisfied`              |
+| `isReachable`          | `nw_path_get_status(path) == nw_path_status_satisfied`              |
 | `transport.Wifi`       | `nw_path_uses_interface_type(path, nw_interface_type_wifi)`         |
 | `transport.Cellular`   | `nw_path_uses_interface_type(path, nw_interface_type_cellular)`     |
 | `transport.Ethernet`   | always `false` — see [Wired Ethernet limitation](../concepts/validated-vs-available.md#wired-ethernet-on-macos-known-limitation) |
 | `transport.Other`      | `nw_path_uses_interface_type(path, nw_interface_type_other)`        |
-| `metering.Metered`     | `nw_path_is_expensive(path)` — cellular or hotspot                  |
-| `metering.Constrained` | `nw_path_is_constrained(path)` — Low Data Mode active               |
+| `isDataMetered`        | `nw_path_is_expensive(path)` OR `nw_path_is_constrained(path)` — cellular, hotspot, or Low Data Mode |
 
-The `Constrained` signal is Apple-only; Android has no equivalent. See
-[Concepts → API design](../concepts/api-design.md#meteringconstrained-is-apple-only).
+Both `nw_path_is_expensive` and `nw_path_is_constrained` set `isDataMetered`.
+See [Concepts → API design](../concepts/api-design.md#data-metering-across-platforms).
 
 ## Threading
 

@@ -7,12 +7,10 @@ package com.happycodelucky.reachable
 
 public enum class Transport { Wifi, Cellular, Ethernet, Other, None }
 
-public enum class Metering { Unmetered, Metered, Constrained }
-
 public data class ReachabilityStatus(
-    val reachable: Boolean,
+    val isReachable: Boolean,
     val transport: Transport,
-    val metering: Metering,
+    val isDataMetered: Boolean,
 ) {
     public companion object { public val Unknown: ReachabilityStatus }
 }
@@ -22,11 +20,11 @@ public interface Reachability : AutoCloseable {
 
     // Convenience shortcuts — synchronous reads off `status.value`.
     public val isReachable: Boolean
-    public val isLowDataMode: Boolean
+    public val isDataMetered: Boolean
 
     // Reactive shortcuts — derived StateFlows, conflated, started eagerly.
     public val reachable: StateFlow<Boolean>
-    public val lowDataMode: StateFlow<Boolean>
+    public val dataMetered: StateFlow<Boolean>
 
     override fun close()
 
@@ -64,54 +62,51 @@ two equivalent calls, so there isn't one.
 | Need                          | Call                              |
 |-------------------------------|-----------------------------------|
 | Sync online check             | `reachability.isReachable`        |
-| Sync Low Data Mode check      | `reachability.isLowDataMode`      |
+| Sync metered check            | `reachability.isDataMetered`      |
 | Reactive online/offline       | `reachability.reachable.collect { }` |
-| Reactive Low Data Mode        | `reachability.lowDataMode.collect { }` |
+| Reactive metered/unmetered    | `reachability.dataMetered.collect { }` |
 
 The reactive variants are dedicated `MutableStateFlow`s that the shared
 base writes synchronously alongside `status` on every status update. Identical
-consecutive values are conflated, so transport- or metering-only changes
-don't trigger emissions on `reachable`.
+consecutive values are conflated, so transport-only changes don't trigger
+emissions on `reachable`, and reachability-only changes don't trigger
+emissions on `dataMetered`.
 
-`isLowDataMode` and `lowDataMode` are always `false` on Android — see
-[`Metering.Constrained` is Apple-only](#meteringconstrained-is-apple-only).
+`isDataMetered` is always `false` when the device is not reachable —
+unreachable paths always report `isDataMetered = false`.
 
 ## Composition over a sealed hierarchy
 
 `ReachabilityStatus` is a `data class`, not a sealed interface with cases
-like `Online`, `Offline`, `Constrained`, etc.
+like `Online`, `Offline`, `Metered`, etc.
 
-The three axes — reachable, transport, metering — are orthogonal. A device
-can be online over cellular and metered at the same time. A sealed
-hierarchy would either cross-product the cases (5 transports × 3 meterings
-× reachable = 30 cases) or stuff axes inside one case's payload, defeating
+The three axes — reachable, transport, data metered — are orthogonal. A
+device can be online over cellular and metered at the same time. A sealed
+hierarchy would either cross-product the cases (5 transports × reachable ×
+metered = many cases) or stuff axes inside one case's payload, defeating
 exhaustiveness.
 
-Enum-per-axis still gives Swift consumers exhaustive `switch` over each axis
+Enum-per-axis still gives Swift consumers exhaustive `switch` over transport
 individually via SKIE: `switch status.transport { case .wifi: …; case
 .cellular: …; … }`. `data class` brings `equals`, `hashCode`, `copy()`, and
 destructuring for free.
 
-The cost: the type system can't catch "you forgot to check `reachable`
+The cost: the type system can't catch "you forgot to check `isReachable`
 before reading `transport`". The mapping enforces `transport ==
-Transport.None` whenever `reachable` is `false`, so this is rarely a real
-hazard.
+Transport.None` whenever `isReachable` is `false`, and enforces
+`isDataMetered == false` whenever `isReachable` is `false`, so this is
+rarely a real hazard.
 
-## Metering.Constrained is Apple-only
+## Data metering across platforms
 
-Apple's Network framework reports Low Data Mode via
-`nw_path_is_constrained(path)`. Android has `NET_CAPABILITY_NOT_METERED`
-and `NET_CAPABILITY_TEMPORARILY_NOT_METERED` but no equivalent.
-
-Two options were available:
-
-1. Drop `Constrained` from the enum and lose the Apple signal.
-2. Keep `Constrained` as Apple-only — Android consumers see it as "never
-   happens", Apple consumers get the richer signal.
-
-Reachable does (2). The cost is a `when` over `metering` that needs an
-`else` arm even on Android-only paths, or a deliberate elision of
-`Constrained` from Android branches with documentation as the contract.
+`isDataMetered` is `true` when the active path is metered — cellular,
+hotspot, or (on Apple) Low Data Mode active. On Apple, both
+`nw_path_is_expensive` and `nw_path_is_constrained` set this flag; the
+distinction between "expensive" and "constrained" is not surfaced in the
+public API because no consumer use case required it beyond what
+`transport == Transport.Cellular` already conveys. On Android,
+`NET_CAPABILITY_NOT_METERED` and `NET_CAPABILITY_TEMPORARILY_NOT_METERED`
+drive the flag.
 
 ## Singleton vs explicit lifecycle
 

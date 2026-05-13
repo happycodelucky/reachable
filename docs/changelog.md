@@ -23,16 +23,26 @@ to Maven Central and tagged on GitHub. Pin to a tag, never to
   `val status: StateFlow<ReachabilityStatus>` and `fun close()`.
 - Single-axis shortcuts on `Reachability`:
     - `val isReachable: Boolean` — synchronous online check.
-    - `val isLowDataMode: Boolean` — synchronous Low Data Mode check
-      (always `false` on Android).
+    - `val isDataMetered: Boolean` — synchronous metered-path check
+      (cellular, hotspot, or Apple Low Data Mode).
     - `val reachable: StateFlow<Boolean>` — reactive variant of
       `isReachable`, conflated so transport and metering changes don't emit.
-    - `val lowDataMode: StateFlow<Boolean>` — reactive variant of
-      `isLowDataMode`.
-- `data class ReachabilityStatus(reachable, transport, metering)`.
+    - `val dataMetered: StateFlow<Boolean>` — reactive variant of
+      `isDataMetered`.
+- `data class ReachabilityStatus(isReachable, transport, isDataMetered)`.
+  Boolean fields are `is`-prefixed; the unprefixed names are reserved for
+  the `StateFlow<Boolean>` shortcuts on `Reachability`. Invariant:
+  `!isReachable ⇒ !isDataMetered` — unreachable paths never report
+  metered, so callers can read `isDataMetered` without first checking
+  reachability.
 - `enum class Transport { Wifi, Cellular, Ethernet, Other, None }`.
-- `enum class Metering { Unmetered, Metered, Constrained }`. `Constrained`
-  is Apple-only (Low Data Mode) and is never emitted on Android.
+- **No separate `Metering` axis.** Apple's `nw_path_is_constrained` (Low
+  Data Mode) folds into `isDataMetered` alongside `nw_path_is_expensive`;
+  Android's metered/unmetered capability bits map to the same boolean.
+  Consumers who want the cellular-vs-Wi-Fi distinction read `transport`;
+  consumers who want "should I defer this transfer" read `isDataMetered`.
+  The Apple-only Low Data Mode signal is not separately exposed in the
+  public API.
 - Top-level factories: `Reachability()` on Apple, `Reachability(context)` on
   Android. Still available for explicit-lifecycle use (tests, per-feature
   observers). For general use, prefer `Reachability.shared`.
@@ -88,7 +98,7 @@ to Maven Central and tagged on GitHub. Pin to a tag, never to
   transport). No separate `VPN` value.
 - No captive-portal detection callback. Apple and Android both handle
   captive-portal flow at the OS level; the library surfaces the resolved
-  `reachable` boolean only.
+  `isReachable` boolean only.
 - No `androidHostTest` for `AndroidReachability`'s deferred-attach path.
   Blocked on adding Robolectric or a `ConnectivityManager` wrapper interface.
   End-to-end coverage currently provided by the Android sample app.

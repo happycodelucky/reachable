@@ -49,7 +49,7 @@ public annotation class TestingOnly
  * the highest-quality transport using the priority
  * `WIFI > ETHERNET > CELLULAR > OTHER`.
  *
- * [NONE] is reported when [ReachabilityStatus.reachable] is `false`, or when
+ * [None] is reported when [ReachabilityStatus.isReachable] is `false`, or when
  * the platform reports a usable path with an unrecognised interface type.
  */
 public enum class Transport {
@@ -70,58 +70,30 @@ public enum class Transport {
 }
 
 /**
- * Whether the active path is metered, and how aggressively the user wants to
- * limit data usage on it.
- *
- * Apple's Network framework distinguishes "expensive" (cellular / hotspot) from
- * "constrained" (the user has Low Data Mode active for this interface). Android
- * distinguishes only metered / unmetered via
- * `NET_CAPABILITY_NOT_METERED` and `NET_CAPABILITY_TEMPORARILY_NOT_METERED`,
- * with no first-class equivalent of Low Data Mode.
- *
- * Consequence: on Android, [CONSTRAINED] is **never** emitted. Treating it as
- * a stricter form of [METERED] is the right interpretation on Apple.
- */
-public enum class Metering {
-    /** Unlimited data; prefetching, background sync, autoplay are all fine. */
-    Unmetered,
-
-    /** Cellular or hotspot; consider deferring large transfers to Wi-Fi. */
-    Metered,
-
-    /**
-     * Apple-only: user has enabled Low Data Mode for this interface. Apps
-     * should aggressively defer non-essential traffic. Never emitted on Android.
-     */
-    Constrained, ;
-
-    /**
-     * Does the metering represent a low data mode recommendation
-     */
-    val lowDataMode: Boolean
-        get() = this == Metered || this == Constrained
-}
-
-/**
  * A snapshot of network reachability at a single point in time.
  *
- * Composition over a sealed hierarchy: the three axes (reachable / transport /
- * metering) are independent, and exhaustive matching on each axis is cheap via
- * SKIE-generated Swift enums. See [ReachabilityStatus.Unknown] for the
- * pre-observation seed value.
+ * Composition over a sealed hierarchy: the axes (reachable / transport /
+ * data-metered) are independent, and exhaustive matching on the enum axis is
+ * cheap via SKIE-generated Swift enums. See [ReachabilityStatus.Unknown] for
+ * the pre-observation seed value.
  *
- * @property reachable Whether the device has a path to the public internet that
- * has been *validated* (Android `NET_CAPABILITY_VALIDATED`) or is reported as
- * `nw_path_status_satisfied` (Apple). Bare "interface up" is **not** sufficient
- * — captive portals and DNS holes will set this to `false`.
+ * @property isReachable Whether the device has a path to the public internet
+ * that has been *validated* (Android `NET_CAPABILITY_VALIDATED`) or is reported
+ * as `nw_path_status_satisfied` (Apple). Bare "interface up" is **not**
+ * sufficient — captive portals and DNS holes will set this to `false`.
  * @property transport Which interface is carrying the active connection. See
  * [Transport].
- * @property metering Whether the active path is metered. See [Metering].
+ * @property isDataMetered `true` when the active path is reported as metered
+ * by the platform — the consumer should consider deferring large or
+ * non-essential transfers. On Apple this is
+ * `nw_path_is_expensive(path) || nw_path_is_constrained(path)`, so the Low
+ * Data Mode signal folds into this single bit. On Android it is the negation
+ * of `NET_CAPABILITY_NOT_METERED || NET_CAPABILITY_TEMPORARILY_NOT_METERED`.
  */
 public data class ReachabilityStatus(
-    val reachable: Boolean,
+    val isReachable: Boolean,
     val transport: Transport,
-    val metering: Metering,
+    val isDataMetered: Boolean,
 ) {
     public companion object {
         /**
@@ -130,7 +102,7 @@ public data class ReachabilityStatus(
          * reading. Equivalent to "we don't know yet, assume offline."
          */
         public val Unknown: ReachabilityStatus =
-            ReachabilityStatus(reachable = false, transport = Transport.None, metering = Metering.Unmetered)
+            ReachabilityStatus(isReachable = false, transport = Transport.None, isDataMetered = false)
     }
 }
 
@@ -164,7 +136,7 @@ public data class ReachabilityStatus(
  * ```swift
  * .task {
  *     for await status in reachability.status {
- *         self.online = status.reachable
+ *         self.online = status.isReachable
  *     }
  * }
  * ```
@@ -193,12 +165,12 @@ public interface Reachability : AutoCloseable {
     public val status: StateFlow<ReachabilityStatus>
 
     /**
-     * Convenience shortcut for `status.value.reachable`. Reads the current
+     * Convenience shortcut for `status.value.isReachable`. Reads the current
      * reachability boolean synchronously without unpacking the full
      * [ReachabilityStatus]. Equivalent to:
      *
      * ```kotlin
-     * reachability.status.value.reachable
+     * reachability.status.value.isReachable
      * ```
      *
      * For a reactive listener, prefer [reachable] (the `StateFlow<Boolean>`
@@ -207,33 +179,34 @@ public interface Reachability : AutoCloseable {
     public val isReachable: Boolean
 
     /**
-     * Convenience shortcut for `status.value.metering == Metering.Constrained`.
-     * On Apple, `true` means the user has Low Data Mode active for the
-     * current path; on Android this is **always** `false` (the platform has
-     * no equivalent capability — see [Metering] for the rationale).
+     * Convenience shortcut for `status.value.isDataMetered`. `true` when the
+     * platform reports the active path as metered — cellular, hotspot, or
+     * Apple Low Data Mode on iOS / macOS. The consumer should consider
+     * deferring large or non-essential transfers.
      *
-     * For a reactive listener, prefer [lowDataMode].
+     * For a reactive listener, prefer [dataMetered].
      */
-    public val isLowDataMode: Boolean
+    public val isDataMetered: Boolean
 
     /**
      * Reactive variant of [isReachable]: emits the current reachability
      * boolean, then a fresh emission whenever it changes. Built off [status]
-     * via `.map { it.reachable }`, so transport / metering churn that
+     * via `.map { it.isReachable }`, so transport / metering churn that
      * doesn't change the reachable axis is collapsed (StateFlow conflation).
      *
-     * Cheaper than wiring your own `status.map { it.reachable }
+     * Cheaper than wiring your own `status.map { it.isReachable }
      * .distinctUntilChanged()` because the flow is shared across all
      * collectors and started eagerly at construction time.
      */
     public val reachable: StateFlow<Boolean>
 
     /**
-     * Reactive variant of [isLowDataMode]: emits `true` when the path is
-     * constrained (Apple Low Data Mode), `false` otherwise. **Always**
-     * `false` on Android — the platform has no equivalent of Low Data Mode.
+     * Reactive variant of [isDataMetered]: emits `true` when the active path
+     * is metered (cellular, hotspot, or Apple Low Data Mode), `false`
+     * otherwise. Like [reachable], same-value emissions are conflated by
+     * StateFlow.
      */
-    public val lowDataMode: StateFlow<Boolean>
+    public val dataMetered: StateFlow<Boolean>
 
     /**
      * Tear down the platform observer (Apple: `nw_path_monitor_cancel`;

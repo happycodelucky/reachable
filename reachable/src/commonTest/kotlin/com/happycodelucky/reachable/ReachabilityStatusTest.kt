@@ -13,6 +13,7 @@ import com.happycodelucky.reachable.internal.mapApplePath
 import com.happycodelucky.reachable.internal.pickTransport
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 
 class ReachabilityStatusTest {
@@ -21,19 +22,19 @@ class ReachabilityStatusTest {
     @Test
     fun unknown_isOfflineWithNoneTransport() {
         val u = ReachabilityStatus.Unknown
-        assertEquals(false, u.reachable)
+        assertEquals(false, u.isReachable)
         assertEquals(Transport.None, u.transport)
-        assertEquals(Metering.Unmetered, u.metering)
+        assertEquals(false, u.isDataMetered)
     }
 
     @Test
     fun dataClass_equalityAndCopyWork() {
-        val a = ReachabilityStatus(reachable = true, transport = Transport.Wifi, metering = Metering.Unmetered)
-        val b = ReachabilityStatus(reachable = true, transport = Transport.Wifi, metering = Metering.Unmetered)
+        val a = ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false)
+        val b = ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false)
         assertEquals(a, b)
-        val c = a.copy(metering = Metering.Metered)
+        val c = a.copy(isDataMetered = true)
         assertNotEquals(a, c)
-        assertEquals(Metering.Metered, c.metering)
+        assertEquals(true, c.isDataMetered)
     }
 
     // ---- pickTransport priority -----------------------------------------
@@ -130,13 +131,13 @@ class ReachabilityStatusTest {
                 expensive = false,
                 constrained = false,
             )
-        assertEquals(true, s.reachable)
+        assertEquals(true, s.isReachable)
         assertEquals(Transport.Wifi, s.transport)
-        assertEquals(Metering.Unmetered, s.metering)
+        assertEquals(false, s.isDataMetered)
     }
 
     @Test
-    fun applePath_satisfiedCellularExpensive() {
+    fun applePath_satisfiedCellularExpensiveIsMetered() {
         val s =
             mapApplePath(
                 satisfied = true,
@@ -148,12 +149,30 @@ class ReachabilityStatusTest {
                 constrained = false,
             )
         assertEquals(Transport.Cellular, s.transport)
-        assertEquals(Metering.Metered, s.metering)
+        assertEquals(true, s.isDataMetered)
     }
 
     @Test
-    fun applePath_constrainedTrumpsExpensive() {
-        // Low Data Mode active on a cellular path: Constrained, not Metered.
+    fun applePath_constrainedAloneCountsAsMetered() {
+        // Low Data Mode without `expensive` (e.g. user enabled it on Wi-Fi):
+        // still surfaces as `isDataMetered = true`.
+        val s =
+            mapApplePath(
+                satisfied = true,
+                wifi = true,
+                ethernet = false,
+                cellular = false,
+                other = false,
+                expensive = false,
+                constrained = true,
+            )
+        assertEquals(Transport.Wifi, s.transport)
+        assertEquals(true, s.isDataMetered)
+    }
+
+    @Test
+    fun applePath_constrainedAndExpensiveBothMetered() {
+        // Low Data Mode active on a cellular path: still one bit of output.
         val s =
             mapApplePath(
                 satisfied = true,
@@ -164,13 +183,16 @@ class ReachabilityStatusTest {
                 expensive = true,
                 constrained = true,
             )
-        assertEquals(Metering.Constrained, s.metering)
+        assertEquals(true, s.isDataMetered)
     }
 
     @Test
     fun applePath_unsatisfiedClampsToNoneAndUnmetered() {
         // Even if the platform claims an interface and "expensive" while the
-        // path is unsatisfied, we flatten to a clean offline reading.
+        // path is unsatisfied, we flatten to a clean offline reading. The
+        // `!isReachable ⇒ !isDataMetered` invariant is load-bearing for
+        // consumers who only check `isDataMetered` without first checking
+        // `isReachable`.
         val s =
             mapApplePath(
                 satisfied = false,
@@ -181,9 +203,9 @@ class ReachabilityStatusTest {
                 expensive = true,
                 constrained = true,
             )
-        assertEquals(false, s.reachable)
+        assertEquals(false, s.isReachable)
         assertEquals(Transport.None, s.transport)
-        assertEquals(Metering.Unmetered, s.metering)
+        assertEquals(false, s.isDataMetered)
     }
 
     // ---- mapAndroidCapabilities ------------------------------------------
@@ -201,7 +223,7 @@ class ReachabilityStatusTest {
                 notMetered = true,
                 temporarilyNotMetered = false,
             )
-        assertEquals(false, s.reachable)
+        assertEquals(false, s.isReachable)
         assertEquals(Transport.None, s.transport)
     }
 
@@ -217,9 +239,9 @@ class ReachabilityStatusTest {
                 notMetered = true,
                 temporarilyNotMetered = false,
             )
-        assertEquals(true, s.reachable)
+        assertEquals(true, s.isReachable)
         assertEquals(Transport.Wifi, s.transport)
-        assertEquals(Metering.Unmetered, s.metering)
+        assertEquals(false, s.isDataMetered)
     }
 
     @Test
@@ -235,13 +257,13 @@ class ReachabilityStatusTest {
                 temporarilyNotMetered = false,
             )
         assertEquals(Transport.Cellular, s.transport)
-        assertEquals(Metering.Metered, s.metering)
+        assertEquals(true, s.isDataMetered)
     }
 
     @Test
     fun androidCaps_temporarilyUnmeteredCountsAsUnmetered() {
         // Carriers can flag a metered network as "temporarily unmetered" (e.g.
-        // for app updates). We treat that as UNMETERED.
+        // for app updates). We treat that as not data-metered.
         val s =
             mapAndroidCapabilities(
                 hasInternet = true,
@@ -252,12 +274,15 @@ class ReachabilityStatusTest {
                 notMetered = false,
                 temporarilyNotMetered = true,
             )
-        assertEquals(Metering.Unmetered, s.metering)
+        assertEquals(false, s.isDataMetered)
     }
 
     @Test
-    fun androidCaps_constrainedNeverEmittedFromAndroidMap() {
-        // Sweep every combination — Android's mapping has no path to Constrained.
+    fun androidCaps_dataMeteredFalseWheneverUnreachable() {
+        // Sweep every combination — Android's mapping must never report
+        // `isDataMetered = true` for an unreachable path. The invariant
+        // `!isReachable ⇒ !isDataMetered` lets consumers read the metered
+        // bit without first checking reachability.
         val combos = listOf(true, false)
         for (hasInternet in combos) {
             for (hasValidated in combos) {
@@ -276,11 +301,12 @@ class ReachabilityStatusTest {
                                             notMetered = notMetered,
                                             temporarilyNotMetered = tempUnmetered,
                                         )
-                                    assertNotEquals(
-                                        Metering.Constrained,
-                                        s.metering,
-                                        "Constrained must never be produced on Android",
-                                    )
+                                    if (!s.isReachable) {
+                                        assertFalse(
+                                            s.isDataMetered,
+                                            "Unreachable path must not be reported as data-metered",
+                                        )
+                                    }
                                 }
                             }
                         }

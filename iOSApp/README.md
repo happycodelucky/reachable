@@ -3,7 +3,8 @@
 A SwiftUI app that subscribes to `reachability.status` and renders the
 live `ReachabilityStatus`. Toggle airplane mode or switch between Wi-Fi
 and cellular to see transitions in real time. Enable Low Data Mode in
-Settings → Cellular → Cellular Data Options to see `Metering.Constrained`.
+Settings → Cellular → Cellular Data Options to flip `isDataMetered` on
+Wi-Fi (Low Data Mode folds into the metered signal).
 
 ## Prerequisites
 

@@ -18,7 +18,6 @@
 package com.happycodelucky.reachable.internal
 
 import app.cash.turbine.test
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.TestingOnly
 import com.happycodelucky.reachable.Transport
@@ -31,11 +30,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class StateFlowReachabilityTest {
-    private val wifi = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered)
-    private val cell = ReachabilityStatus(true, Transport.Cellular, Metering.Metered)
-    private val constrainedWifi =
-        ReachabilityStatus(true, Transport.Wifi, Metering.Constrained)
-    private val offline = ReachabilityStatus(false, Transport.None, Metering.Unmetered)
+    private val wifi =
+        ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false)
+    private val cell =
+        ReachabilityStatus(isReachable = true, transport = Transport.Cellular, isDataMetered = true)
+    private val meteredWifi =
+        ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = true)
+    private val offline =
+        ReachabilityStatus(isReachable = false, transport = Transport.None, isDataMetered = false)
 
     @Test
     fun statusStartsAsUnknown() {
@@ -128,7 +130,7 @@ class StateFlowReachabilityTest {
         assertEquals(wifi, r.status.value)
     }
 
-    // ---- isReachable / isLowDataMode shortcuts ---------------------------
+    // ---- isReachable / isDataMetered shortcuts ---------------------------
 
     @Test
     fun isReachable_readsLatestStatusValue() {
@@ -142,18 +144,20 @@ class StateFlowReachabilityTest {
     }
 
     @Test
-    fun isLowDataMode_isTrueOnlyForConstrainedMetering() {
+    fun isDataMetered_tracksLatestStatusValue() {
         val r = FakeReachability()
-        assertFalse(r.isLowDataMode)
-        r.emit(wifi) // Metering.Unmetered
-        assertFalse(r.isLowDataMode)
-        r.emit(cell) // Metering.Metered
-        assertFalse(r.isLowDataMode)
-        r.emit(constrainedWifi) // Metering.Constrained
-        assertTrue(r.isLowDataMode)
+        assertFalse(r.isDataMetered)
+        r.emit(wifi) // isDataMetered = false
+        assertFalse(r.isDataMetered)
+        r.emit(cell) // isDataMetered = true
+        assertTrue(r.isDataMetered)
+        r.emit(meteredWifi) // isDataMetered = true, transport changed
+        assertTrue(r.isDataMetered)
+        r.emit(wifi)
+        assertFalse(r.isDataMetered)
     }
 
-    // ---- reachable / lowDataMode StateFlows -----------------------------
+    // ---- reachable / dataMetered StateFlows -----------------------------
 
     @Test
     fun reachableFlow_initialValueMatchesCurrentStatus() =
@@ -186,10 +190,10 @@ class StateFlowReachabilityTest {
                 assertEquals(false, awaitItem())
                 r.emit(wifi)
                 assertEquals(true, awaitItem())
-                // Transport / metering changes that keep `reachable=true` are
+                // Transport / metering changes that keep `isReachable=true` are
                 // collapsed by StateFlow conflation on the derived flow.
                 r.emit(cell)
-                r.emit(constrainedWifi)
+                r.emit(meteredWifi)
                 // No further emissions expected; cancelAndIgnoreRemainingEvents
                 // would also work, but this is more explicit about intent.
                 expectNoEvents()
@@ -197,18 +201,20 @@ class StateFlowReachabilityTest {
         }
 
     @Test
-    fun lowDataModeFlow_emitsOnConstrainedTransitionsOnly() =
+    fun dataMeteredFlow_emitsOnDataMeteredTransitionsOnly() =
         runTest {
             val r = FakeReachability()
-            r.lowDataMode.test {
-                assertEquals(false, awaitItem()) // Unknown / Unmetered
+            r.dataMetered.test {
+                assertEquals(false, awaitItem()) // Unknown / isDataMetered=false
                 r.emit(wifi)
-                // wifi is Unmetered → still false; conflated.
-                r.emit(cell)
-                // cell is Metered → still false; conflated.
+                // wifi is not data-metered → still false; conflated.
                 expectNoEvents()
-                r.emit(constrainedWifi)
+                r.emit(cell)
                 assertEquals(true, awaitItem())
+                // meteredWifi is also data-metered → still true; conflated even
+                // though transport changes.
+                r.emit(meteredWifi)
+                expectNoEvents()
                 r.emit(wifi)
                 assertEquals(false, awaitItem())
             }

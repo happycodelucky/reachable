@@ -10,7 +10,6 @@
 package com.happycodelucky.reachable.testing
 
 import app.cash.turbine.test
-import com.happycodelucky.reachable.Metering
 import com.happycodelucky.reachable.ReachabilityStatus
 import com.happycodelucky.reachable.Transport
 import kotlinx.coroutines.test.runTest
@@ -20,9 +19,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FakeReachabilityTest {
-    private val wifi = ReachabilityStatus(true, Transport.Wifi, Metering.Unmetered)
-    private val cell = ReachabilityStatus(true, Transport.Cellular, Metering.Metered)
-    private val offline = ReachabilityStatus(false, Transport.None, Metering.Unmetered)
+    private val wifi =
+        ReachabilityStatus(isReachable = true, transport = Transport.Wifi, isDataMetered = false)
+    private val cell =
+        ReachabilityStatus(isReachable = true, transport = Transport.Cellular, isDataMetered = true)
+    private val offline =
+        ReachabilityStatus(isReachable = false, transport = Transport.None, isDataMetered = false)
 
     @Test
     fun defaultSeed_isUnknown() {
@@ -50,35 +52,47 @@ class FakeReachabilityTest {
         }
 
     @Test
-    fun setReachable_preservesTransportAndMetering() {
+    fun setReachable_preservesTransportAndDataMetered() {
         val fake = FakeReachability(initial = cell)
         fake.setReachable(false)
         assertEquals(
-            ReachabilityStatus(reachable = false, transport = Transport.Cellular, metering = Metering.Metered),
+            ReachabilityStatus(
+                isReachable = false,
+                transport = Transport.Cellular,
+                isDataMetered = true,
+            ),
             fake.status.value,
         )
     }
 
     @Test
-    fun setTransport_preservesReachableAndMetering() {
+    fun setTransport_preservesReachableAndDataMetered() {
         val fake = FakeReachability(initial = wifi)
         fake.setTransport(Transport.Cellular)
         assertEquals(
-            ReachabilityStatus(reachable = true, transport = Transport.Cellular, metering = Metering.Unmetered),
+            ReachabilityStatus(
+                isReachable = true,
+                transport = Transport.Cellular,
+                isDataMetered = false,
+            ),
             fake.status.value,
         )
     }
 
     @Test
-    fun setMetering_preservesReachableAndTransport() {
+    fun setDataMetered_preservesReachableAndTransport() {
         val fake = FakeReachability(initial = wifi)
-        fake.setMetering(Metering.Constrained)
+        fake.setDataMetered(true)
         assertEquals(
-            ReachabilityStatus(reachable = true, transport = Transport.Wifi, metering = Metering.Constrained),
+            ReachabilityStatus(
+                isReachable = true,
+                transport = Transport.Wifi,
+                isDataMetered = true,
+            ),
             fake.status.value,
         )
-        // The derived `lowDataMode` flow should reflect the change too.
-        assertTrue(fake.isLowDataMode)
+        // The shortcut should reflect the change too.
+        assertTrue(fake.isDataMetered)
     }
 
     @Test

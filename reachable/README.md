@@ -14,9 +14,9 @@ register as not reachable.
 
 ```kotlin
 public data class ReachabilityStatus(
-    val reachable: Boolean,
+    val isReachable: Boolean,
     val transport: Transport,    // Wifi, Cellular, Ethernet, Other, None
-    val metering: Metering,      // Unmetered, Metered, Constrained
+    val isDataMetered: Boolean,
 )
 
 public interface Reachability : AutoCloseable {
@@ -24,9 +24,9 @@ public interface Reachability : AutoCloseable {
 
     // Convenience shortcuts.
     public val isReachable: Boolean
-    public val isLowDataMode: Boolean
+    public val isDataMetered: Boolean
     public val reachable: StateFlow<Boolean>
-    public val lowDataMode: StateFlow<Boolean>
+    public val dataMetered: StateFlow<Boolean>
 
     override fun close()
 
@@ -43,9 +43,11 @@ public fun Reachability(): Reachability
 public fun Reachability(context: Context): Reachability
 ```
 
-`Metering.Constrained` corresponds to Apple's Low Data Mode and is never
-emitted on Android. Treat it as a stricter form of `Metered` for
-lowest-common-denominator reads.
+`isDataMetered` is `true` when the platform reports the active path as
+metered — cellular, hotspot, or Apple's Low Data Mode on iOS / macOS.
+Treat it as the "consider deferring large transfers" signal. The
+invariant `!isReachable ⇒ !isDataMetered` holds on both platforms, so a
+caller may read `isDataMetered` without first checking `isReachable`.
 
 ## Usage
 
@@ -101,8 +103,9 @@ final class ConnectivityModel: ObservableObject {
 }
 ```
 
-`Transport` and `Metering` arrive as native Swift enums; exhaustive
-`switch` works without a `default` arm.
+`Transport` arrives as a native Swift enum; exhaustive `switch` works
+without a `default` arm. `isReachable` and `isDataMetered` are plain
+`Bool` on the Swift side.
 
 ### Jetpack Compose
 
@@ -112,7 +115,7 @@ fun ConnectivityBanner() {
     // No Context, no remember — Reachability.shared is auto-attached by
     // the library's androidx.startup initializer before Application.onCreate.
     val status by Reachability.shared.status.collectAsStateWithLifecycle()
-    if (!status.reachable) {
+    if (!status.isReachable) {
         Text("You're offline")
     }
 }
@@ -142,7 +145,7 @@ model.
 ## Behaviour notes
 
 - **Captive portals.** Android: detected via `NET_CAPABILITY_VALIDATED`;
-  `reachable` is `false` until Android's connectivity probe confirms
+  `isReachable` is `false` until Android's connectivity probe confirms
   public internet. Apple: `nw_path_status_satisfied` defers to its own
   probing.
 - **VPN.** Both platforms report the underlying transport (Wifi, Cellular,
