@@ -3,14 +3,23 @@
 Maintainer-facing runbook for cutting a Reachable release. Aimed at the
 person holding the publish keys; most contributors don't need this page.
 
-Reachable publishes a single Kotlin Multiplatform artifact to Maven
+Reachable publishes two sibling Kotlin Multiplatform artifacts to Maven
 Central via vanniktech's
 [`gradle-maven-publish-plugin`](https://github.com/vanniktech/gradle-maven-publish-plugin):
-Android AAR, KMP common metadata, per-target klibs
-(`iosArm64`, `iosSimulatorArm64`, `macosArm64`), and sources + javadoc
-jars. Everything is GPG-signed in-process. A native Swift Package
-Manager distribution is on the v0.2 plan; see
-[Installation](installation.md#apple-side-spm-roadmap).
+
+| Coordinate | Purpose |
+|---|---|
+| `com.happycodelucky.reachable:reachable` | The library itself. |
+| `com.happycodelucky.reachable:reachable-testing` | `FakeReachability` + the `withFakeReachability { }` helper. Consumers wire as `testImplementation` / `commonTest`. |
+
+Both ship together in every release run and version in lockstep: the
+release workflow invokes `./gradlew publishAndReleaseToMavenCentral`
+without a module scope, so every module declaring a `mavenPublishing { }`
+block is published. Each artifact carries the Android AAR, KMP common
+metadata, per-target klibs (`iosArm64`, `iosSimulatorArm64`,
+`macosArm64`), and sources + javadoc jars. Everything is GPG-signed
+in-process. A native Swift Package Manager distribution is on the v0.2
+plan; see [Installation](installation.md#apple-side-spm-roadmap).
 
 ## Cutting a release
 

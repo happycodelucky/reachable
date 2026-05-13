@@ -155,7 +155,14 @@ skie {
 // release pipeline. POM mirrors `:reachable`'s metadata — same licence,
 // developer, SCM — only the artifactId, name, and description differ.
 mavenPublishing {
-    publishToMavenCentral(automaticRelease = true)
+    // `automaticRelease = false` matches the load-bearing flag in
+    // `:reachable`'s `mavenPublishing { }` block — see the long comment
+    // there for the cascade. The two modules must agree on this flag:
+    // every release run publishes both, so if one auto-releases and the
+    // other doesn't, the dry-run vs publish-and-release distinction
+    // breaks asymmetrically and one module ships while the other stays
+    // staged. Keep them in lockstep.
+    publishToMavenCentral(automaticRelease = false)
     signAllPublications()
 
     coordinates(

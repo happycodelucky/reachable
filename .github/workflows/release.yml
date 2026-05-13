@@ -185,18 +185,23 @@ jobs:
       # collision here gives a clear "this version is already published"
       # message and saves a few minutes of build time on a doomed run.
       #
-      # Reads maven-metadata.xml directly from repo1.maven.org. The grep is
-      # exact-match for `<version>X.Y.Z</version>` to avoid substring matches
-      # (e.g. version 0.3.4 matching 0.3.42).
+      # Checks every module that ships under com.happycodelucky.reachable.
+      # The two artifacts version together, so a collision on either one
+      # means the run can't proceed. The grep is exact-match for
+      # `<version>X.Y.Z</version>` to avoid substring matches (e.g.
+      # version 0.3.4 matching 0.3.42).
       - name: Verify version not already published
         run: |
           set -euo pipefail
-          METADATA_URL="https://repo1.maven.org/maven2/com/happycodelucky/reachable/reachable/maven-metadata.xml"
-          if curl -sf "$METADATA_URL" 2>/dev/null | grep -qE "<version>${RELEASE_VERSION//./\\.}</version>"; then
-            echo "::error::Version $RELEASE_VERSION is already published to Maven Central."
-            echo "::error::Maven Central refuses to overwrite published artifacts. Re-run the workflow to get a fresh GITHUB_RUN_NUMBER patch."
-            exit 1
-          fi
+          ESCAPED="${RELEASE_VERSION//./\\.}"
+          for ARTIFACT in reachable reachable-testing; do
+            METADATA_URL="https://repo1.maven.org/maven2/com/happycodelucky/reachable/${ARTIFACT}/maven-metadata.xml"
+            if curl -sf "$METADATA_URL" 2>/dev/null | grep -qE "<version>${ESCAPED}</version>"; then
+              echo "::error::Version $RELEASE_VERSION is already published as com.happycodelucky.reachable:${ARTIFACT} on Maven Central."
+              echo "::error::Maven Central refuses to overwrite published artifacts. Re-run the workflow to get a fresh GITHUB_RUN_NUMBER patch."
+              exit 1
+            fi
+          done
           echo "Version $RELEASE_VERSION is not yet on Maven Central — safe to publish."
 
       # mise pins JDK, gradle, etc. (see /mise.toml). setup-gradle below is
@@ -216,10 +221,11 @@ jobs:
       # Vanniktech `mavenPublishing { }` exposes two umbrella tasks (see
       # reachable/build.gradle.kts). The "stops at staging" behaviour of
       # the dry-run task is contingent on `automaticRelease = false` in
-      # the `mavenPublishing { }` config — if that ever flips back to
-      # `true` the dry run silently becomes a real publish. See the
-      # comment on `publishToMavenCentral(automaticRelease = …)` in
-      # reachable/build.gradle.kts.
+      # each module's `mavenPublishing { }` config — if that ever flips
+      # back to `true` in any module the dry run silently becomes a real
+      # publish for that module. See the comments on
+      # `publishToMavenCentral(automaticRelease = …)` in
+      # reachable/build.gradle.kts and reachable-testing/build.gradle.kts.
       #
       #   * publishToMavenCentral             — build + sign + upload to
       #     Central staging. STOPS before the irreversible "release" step.
@@ -230,11 +236,19 @@ jobs:
       #     closes the deployment, and releases it to public Maven Central.
       #     Cannot be undone. Used only when `dryRun=false`.
       #
-      # Both publish every publication the KMP plugin registered (Android
-      # AAR, kotlinMultiplatform metadata, iosArm64, iosSimulatorArm64,
-      # macosArm64 klibs) plus their sources / javadoc jars and detached
-      # GPG signatures. Snapshot versions (anything ending in `-SNAPSHOT`)
-      # auto-route to the Central Portal snapshots endpoint.
+      # The Gradle invocation is *not* scoped to a specific module
+      # (no `:reachable:` prefix) — that way it runs across every module
+      # that declares a `mavenPublishing { }` block. Currently that's
+      # `:reachable` and `:reachable-testing`, which version and ship
+      # together. Adding a new publishable module is free: declare the
+      # block and the next release picks it up.
+      #
+      # Both tasks publish every publication the KMP plugin registered
+      # (Android AAR, kotlinMultiplatform metadata, iosArm64,
+      # iosSimulatorArm64, macosArm64 klibs) plus their sources / javadoc
+      # jars and detached GPG signatures. Snapshot versions (anything
+      # ending in `-SNAPSHOT`) auto-route to the Central Portal snapshots
+      # endpoint.
       - name: Publish to Maven Central (dry run — staging only)
         if: ${{ inputs.dryRun }}
         env:
@@ -249,7 +263,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey:         ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
         run: |
-          ./gradlew :reachable:publishToMavenCentral \
+          ./gradlew publishToMavenCentral \
             -Pversion=$RELEASE_VERSION --no-daemon
 
       - name: Publish to Maven Central (release — IRREVERSIBLE)
@@ -260,7 +274,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey:         ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_CENTRAL_SIGNING_KEY_PASSWORD }}
         run: |
-          ./gradlew :reachable:publishAndReleaseToMavenCentral \
+          ./gradlew publishAndReleaseToMavenCentral \
             -Pversion=$RELEASE_VERSION --no-daemon
 
       # Only tag + create a GitHub Release on a real publish, not a dry run.
