@@ -184,9 +184,6 @@ The public API never returns `kotlin.Result<T>` and never uses `Pair` or
 Named `data class`es and project-defined `sealed interface`s are the
 substitute. Reachable's current surface needs neither.
 
-(See [CLAUDE.md §8](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
-for the rule.)
-
 ## `AutoCloseable.close()`
 
 Per-instance handles (built via `Reachability(context)` / `Reachability()`)

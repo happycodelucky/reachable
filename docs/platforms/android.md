@@ -175,9 +175,7 @@ requires. It reflects the project's broader baseline.
 ## ABI
 
 `arm64-v8a` only. Set in `gradle/libs.versions.toml` and reflected in CI.
-No `armeabi-v7a`, no `x86_64`, no `x86`. Per
-[CLAUDE.md §1](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md):
-ARM only, no exceptions.
+No `armeabi-v7a`, no `x86_64`, no `x86` — ARM only, no exceptions.
 
 ## See also
 
