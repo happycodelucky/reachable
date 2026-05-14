@@ -28,10 +28,10 @@ invocations still work; mise just ensures everyone runs the same versions.
 - Android SDK with command-line tools; `local.properties` should set
   `sdk.dir`.
 
-[CLAUDE.md](https://github.com/happycodelucky/reachable/blob/main/CLAUDE.md)
-is the binding rule set: Kotlin-first dependencies, ARM-only targets, SKIE,
-Maven Central publishing, the Apple-name casing rule. Read it before
-opening a PR.
+A few binding repo conventions worth knowing before you open a PR:
+Kotlin-first dependencies, ARM-only targets, SKIE for the Swift surface,
+Maven Central publishing, and the Apple platform-name casing rule
+(`IOSPathMonitor`, not `IosPathMonitor`).
 
 ## Reporting a bug
 
@@ -85,7 +85,7 @@ mise run docs:check     # nav coverage, recipes have code blocks
 
 `mkdocs build --strict` fails on broken internal links and dead anchors.
 `docs/check.py` enforces the structural invariants: every page is referenced
-from `mkdocs.yml`, every recipe has at least one code block.
+from the site navigation, every recipe has at least one code block.
 
 ## Pull request expectations
 

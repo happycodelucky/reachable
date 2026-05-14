@@ -62,6 +62,42 @@ Highlights:
 
 ---
 
+## Installation
+
+Reachable publishes to Maven Central. From a Kotlin Multiplatform project,
+depend on `:reachable` from `commonMain` — KMP resolves the right per-target
+slice (Android AAR, `iosArm64`, `iosSimulatorArm64`, `macosArm64`) for you:
+
+```kotlin
+// shared/build.gradle.kts
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.happycodelucky.reachable:reachable:0.12.11")
+        }
+    }
+}
+```
+
+Android-only consumers depend on the artifact directly:
+
+```kotlin
+// app/build.gradle.kts
+dependencies {
+    implementation("com.happycodelucky.reachable:reachable:0.12.11")
+}
+```
+
+A companion `reachable-testing` artifact ships `FakeReachability` and the
+`withFakeReachability { }` helper — add it as a test dependency at the same
+version. Pure-Swift apps that don't use Kotlin Multiplatform aren't supported
+yet; a native Swift Package Manager distribution is on the roadmap. See the
+[Installation guide](https://happycodelucky.github.io/reachable/installation/)
+for platform floors, the testing artifact, the Apple-side SPM roadmap, and the
+local-development override.
+
+---
+
 ## Quick example
 
 ```kotlin

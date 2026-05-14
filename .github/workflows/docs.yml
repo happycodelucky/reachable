@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Reusable: the Release workflow calls this after a real publish so the
+  # docs site re-resolves the freshly-published version without waiting for
+  # the next push to main. See .github/workflows/release.yml.
+  workflow_call:
 
 # Required by actions/deploy-pages on top of the default GITHUB_TOKEN scopes.
 permissions:
