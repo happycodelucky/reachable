@@ -5,12 +5,12 @@ Reachable ships through two channels:
 | Channel | For | Artifacts |
 |---|---|---|
 | **Maven Central** | Gradle — Android, JVM, Kotlin Multiplatform | Android AAR, `kotlinMultiplatform` metadata, per-target klibs (`iosArm64`, `iosSimulatorArm64`, `macosArm64`) |
-| **Swift Package Manager** | Pure-Swift iOS / macOS apps, no Kotlin toolchain | Prebuilt [SKIE](https://skie.touchlab.co/)-enhanced `Reachable.xcframework`, hosted as a GitHub Release asset |
+| **Swift Package Manager** | Pure-Swift iOS / macOS apps, no Kotlin toolchain | Prebuilt `Reachable.xcframework`, hosted as a GitHub Release asset |
 
 Kotlin Multiplatform projects should use the Maven artifact from
 `commonMain` — KMP resolves the right per-target slice automatically, and
-SKIE bridging happens at *your* project's framework build. The Swift
-package is for apps with no Kotlin in them at all — see
+the Swift surface is produced at *your* project's framework build. The
+Swift package is for apps with no Kotlin in them at all — see
 [Swift Package Manager](#swift-package-manager) below.
 
 ## Platform floors
@@ -20,7 +20,7 @@ package is for apps with no Kotlin in them at all — see
 | iOS / iPadOS | iOS 18     |
 | macOS        | macOS 15   |
 | Android      | API 30 (Android 11), `arm64-v8a` only |
-| Kotlin       | 2.3.x (K2). The upper bound tracks SKIE — see [SKIE releases](https://github.com/touchlab/SKIE/releases). |
+| Kotlin       | 2.3.x (K2) |
 
 ## Gradle (Android, JVM, KMP)
 
@@ -113,8 +113,8 @@ when the block throws.
 
 ## Swift Package Manager
 
-Pure-Swift apps consume Reachable as a binary Swift package: a prebuilt,
-SKIE-enhanced `Reachable.xcframework` with `iosArm64`, `iosSimulatorArm64`,
+Pure-Swift apps consume Reachable as a binary Swift package: a prebuilt
+`Reachable.xcframework` with `iosArm64`, `iosSimulatorArm64`,
 and `macosArm64` slices. No Kotlin toolchain, no Gradle, no authentication —
 the package manifest lives at the root of this repository and the binary is
 a public GitHub Release asset, pinned by sha256 checksum in the manifest.
@@ -142,7 +142,7 @@ a public GitHub Release asset, pinned by sha256 checksum in the manifest.
     ]
     ```
 
-Then `import Reachable`. The SKIE bridge is baked into the framework, so
+Then `import Reachable`. The Swift bridge is baked into the framework, so
 `StateFlow` arrives as a Swift `AsyncSequence`, sealed types `switch`
 exhaustively via `onEnum(of:)`, and `suspend` functions are `async throws`.
 
@@ -153,8 +153,8 @@ resolve` downloads a prebuilt framework instead of compiling Kotlin.
 If you're working from a KMP project, don't add the Swift package — the
 iOS / macOS targets are consumed transparently via the
 `kotlinMultiplatform` metadata published alongside the Android AAR, and
-SKIE bridging happens at your project's framework build time, not the
-library's.
+the Swift surface is produced at your project's framework build time, not
+the library's.
 
 ## Local development override
 

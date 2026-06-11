@@ -1,4 +1,4 @@
-# Reachable docs site (CLAUDE.md §10).
+# Reachable docs site.
 #
 # Source of truth for docs structure. Auto-discovery is deliberately disabled —
 # explicit `nav:` keeps page ordering deterministic.
@@ -67,7 +67,7 @@ markdown_extensions:
   - toc:
       permalink: true
       toc_depth: 3
-  # PyMdown — same set as Backgrounder.
+  # PyMdown extensions.
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true

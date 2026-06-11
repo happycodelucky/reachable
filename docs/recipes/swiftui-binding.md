@@ -1,7 +1,7 @@
 # SwiftUI binding
 
-SKIE bridges `StateFlow<T>` as `AsyncSequence<T>`, so the integration is a
-single `for await` loop. Wrap that in an `@MainActor`
+`StateFlow<T>` is bridged to Swift as an `AsyncSequence<T>`, so the
+integration is a single `for await` loop. Wrap that in an `@MainActor`
 `ObservableObject` view-model and bind from a SwiftUI view.
 
 ## With `Reachability.shared` (recommended)
@@ -143,9 +143,9 @@ if now.isReachable {
 }
 ```
 
-`StateFlow.value` is non-optional in Kotlin, but SKIE renders it as
-Swift `Any?`. The `!` unwraps the bridged value to `ReachabilityStatus`.
-SKIE may relax this in a future version.
+`StateFlow.value` is non-optional in Kotlin, but the bridged Swift
+property is typed `Any?`. The `!` unwraps the bridged value to
+`ReachabilityStatus`. This may tighten in a future release.
 
 For a one-shot suspending read in an `async` function:
 

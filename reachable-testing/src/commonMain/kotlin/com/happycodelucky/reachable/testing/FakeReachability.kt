@@ -64,7 +64,7 @@ import kotlin.native.ObjCName
  * shared singleton via `Reachability.installForTesting`, runs your test
  * block, then uninstalls and closes the fake in `finally`.
  *
- * Renames cleanly across the SKIE bridge: in Swift the class reads as
+ * Renames cleanly across the Swift bridge: in Swift the class reads as
  * `FakeReachability`, with `emit(status:)`, `setReachable(_:)`,
  * `setTransport(_:)`, `setDataMetered(_:)`, `reset()`, `closeCallCount`,
  * `wasClosed`.

@@ -87,7 +87,7 @@ metered = many cases) or stuff axes inside one case's payload, defeating
 exhaustiveness.
 
 Enum-per-axis still gives Swift consumers exhaustive `switch` over transport
-individually via SKIE: `switch status.transport { case .wifi: …; case
+individually: `switch status.transport { case .wifi: …; case
 .cellular: …; … }`. `data class` brings `equals`, `hashCode`, `copy()`, and
 destructuring for free.
 
@@ -121,7 +121,7 @@ val reachability: Reachability = Reachability.shared
 ```
 
 From Swift: `Reachability.shared` (via a Swift extension compiled into the
-framework by SKIE; no companion prefix needed).
+framework; no companion prefix needed).
 
 **Why we use a singleton, not a mandatory factory.** On Android, the
 `Context` requirement means that anything consuming reachability via
@@ -192,7 +192,7 @@ own a platform observer (`nw_path_monitor` or `NetworkCallback`) and a
 path on both Apple and Android, so cleanup is explicit.
 
 `AutoCloseable.close()` is the universal idiom across Kotlin, Java, and
-Swift; SKIE renders it as `close()` without any name mangling. The
+Swift; it surfaces in Swift as `close()` without any name mangling. The
 implementation is idempotent and synchronous.
 
 `Reachability.shared` is an exception: `close()` is an intentional no-op
