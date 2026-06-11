@@ -12,6 +12,7 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.skie) apply false
+    alias(libs.plugins.kmmbridge.github) apply false
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
     // KSP is not used in v1 (no Koin Annotations, no codegen). Add when needed.
