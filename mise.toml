@@ -41,21 +41,26 @@ swiftformat = "0.61.1"                      # iOSApp/macOSApp Swift formatter.
 
 # --- check / lint / format -------------------------------------------------
 
+# Both published modules are listed explicitly. Gradle's `check` is
+# per-project — `:reachable:check` alone never runs `:reachable-testing`'s
+# test suite. The sample app (`:androidApp`) is deliberately NOT listed:
+# samples are demo scaffolding, excluded from lint and CI by policy (see
+# the subprojects block in build.gradle.kts).
 [tasks.check]
-description = "Run ktlint + every unit test (iOS simulator, macOS, Android host)."
-run = "./gradlew :reachable:check"
+description = "Run ktlint + detekt + every unit test in both published modules (iOS simulator, macOS, Android host)."
+run = "./gradlew :reachable:check :reachable-testing:check"
 
 [tasks.test]
 description = "Alias for `check`."
 depends = ["check"]
 
 [tasks.lint]
-description = "ktlint only (no tests)."
-run = "./gradlew :reachable:ktlintCheck"
+description = "ktlint + detekt only (no tests), both published modules."
+run = "./gradlew :reachable:ktlintCheck :reachable:detekt :reachable-testing:ktlintCheck :reachable-testing:detekt"
 
 [tasks.format]
-description = "ktlint auto-fix."
-run = "./gradlew :reachable:ktlintFormat"
+description = "ktlint auto-fix, both published modules."
+run = "./gradlew :reachable:ktlintFormat :reachable-testing:ktlintFormat"
 
 [tasks."lint:swift"]
 description = "Run swiftlint across the iOS and macOS sample apps."

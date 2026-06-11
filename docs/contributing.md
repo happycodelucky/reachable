@@ -53,14 +53,15 @@ flagging when you hit them.
 The mise tasks below wrap `./gradlew` — pick whichever surface you prefer.
 
 ```bash
-mise run check          # ktlint and every unit test (iOS sim, macOS, Android host)
+mise run check          # ktlint, detekt, and every unit test in both published
+                        # modules (iOS sim, macOS, Android host)
 mise run build:ios      # iOS device and Apple Silicon simulator debug frameworks
 mise run build:macos    # macOS desktop debug framework
 mise run build          # release Reachable.xcframework (SPM-consumable)
 mise run build:android  # Android AAR
 
 # Raw Gradle equivalents, for reference:
-./gradlew :reachable:check
+./gradlew :reachable:check :reachable-testing:check
 ./gradlew :reachable:linkDebugFrameworkIosArm64
 ./gradlew :reachable:linkDebugFrameworkIosSimulatorArm64
 ./gradlew :reachable:linkDebugFrameworkMacosArm64

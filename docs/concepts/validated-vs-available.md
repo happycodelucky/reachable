@@ -67,25 +67,19 @@ The library does not add an HTTP probe on top of either platform. Both
 platforms already probe internally; layering another probe slows the first
 emission, drains battery, and produces two slightly disagreeing signals.
 
-## Wired Ethernet on macOS — known limitation
+## Wired Ethernet on Apple
 
-Kotlin/Native's `platform.Network` cinterop does not currently expose
-`nw_interface_type_wired_ethernet`. The constant exists in Apple's headers
-(`<Network/nw_path.h>`) but the binding generator at this Kotlin version
-doesn't surface it.
+Wired connections surface as `Transport.Ethernet` on Apple platforms via
+`nw_interface_type_wired` — Apple's constant for wired interfaces in
+`<Network/nw_interface.h>` (Swift spells it `.wiredEthernet`; the C and
+Kotlin/Native name is `wired`). On macOS this covers built-in Ethernet and
+USB/Thunderbolt adapters; on iOS / iPadOS it covers wired adapters and
+docks. Android's `TRANSPORT_ETHERNET` maps to the same `Transport.Ethernet`
+value, so the axis reads identically across platforms.
 
-The library passes `ethernet = false` to the mapping helper on Apple, so
-a wired Ethernet path falls through to `nw_interface_type_other` and
-surfaces as `Transport.Other` — still reachable, just unlabelled. Android's
-`TRANSPORT_ETHERNET` is unaffected.
-
-Workarounds:
-
-- Treat `Transport.Other` on macOS as "probably Ethernet" — by far the
-  most likely case given the laptop and desktop usage profile.
-- Layer a SwiftUI extension on top of the library's reading: consult
-  `NWPathMonitor.currentPath` and call `usesInterfaceType(.wiredEthernet)`
-  directly on macOS.
+When a path uses several interfaces at once (VPN over Ethernet, for
+example) the library reports the highest-priority transport:
+`Wifi > Ethernet > Cellular > Other`.
 
 ## Captive portals from a UX perspective
 

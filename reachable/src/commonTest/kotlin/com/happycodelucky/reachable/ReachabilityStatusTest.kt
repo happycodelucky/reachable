@@ -282,36 +282,26 @@ class ReachabilityStatusTest {
         // Sweep every combination — Android's mapping must never report
         // `isDataMetered = true` for an unreachable path. The invariant
         // `!isReachable ⇒ !isDataMetered` lets consumers read the metered
-        // bit without first checking reachability.
-        val combos = listOf(true, false)
-        for (hasInternet in combos) {
-            for (hasValidated in combos) {
-                for (hasWifi in combos) {
-                    for (hasEthernet in combos) {
-                        for (hasCellular in combos) {
-                            for (notMetered in combos) {
-                                for (tempUnmetered in combos) {
-                                    val s =
-                                        mapAndroidCapabilities(
-                                            hasInternet = hasInternet,
-                                            hasValidated = hasValidated,
-                                            hasWifi = hasWifi,
-                                            hasEthernet = hasEthernet,
-                                            hasCellular = hasCellular,
-                                            notMetered = notMetered,
-                                            temporarilyNotMetered = tempUnmetered,
-                                        )
-                                    if (!s.isReachable) {
-                                        assertFalse(
-                                            s.isDataMetered,
-                                            "Unreachable path must not be reported as data-metered",
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        // bit without first checking reachability. Each bit of the mask
+        // drives one of the seven boolean inputs.
+        for (mask in 0 until (1 shl 7)) {
+            fun bit(index: Int): Boolean = mask and (1 shl index) != 0
+
+            val s =
+                mapAndroidCapabilities(
+                    hasInternet = bit(0),
+                    hasValidated = bit(1),
+                    hasWifi = bit(2),
+                    hasEthernet = bit(3),
+                    hasCellular = bit(4),
+                    notMetered = bit(5),
+                    temporarilyNotMetered = bit(6),
+                )
+            if (!s.isReachable) {
+                assertFalse(
+                    s.isDataMetered,
+                    "Unreachable path must not be reported as data-metered (mask=$mask)",
+                )
             }
         }
     }

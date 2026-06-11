@@ -1,0 +1,19 @@
+# Reachable — editor + ktlint configuration (CLAUDE.md §3).
+#
+# ktlint reads this file natively. max_line_length keeps ktlint's wrapping
+# rules in agreement with detekt's MaxLineLength (also 120) — without it,
+# ktlint assumes unlimited width and demands single-line collapses that
+# detekt then rejects.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+indent_size = 4
+max_line_length = 120
+ktlint_code_style = official

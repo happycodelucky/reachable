@@ -157,8 +157,9 @@ public class FakeReachability(
         _closeCallCount.incrementAndGet()
     }
 
-    // No platform observer to tear down — FakeReachability is a pure-Kotlin
-    // StateFlow driver. The base class CAS latch already stops `publish` from
-    // accepting further emissions after close().
-    override fun onClose() {}
+    override fun onClose() {
+        // No platform observer to tear down — FakeReachability is a pure-Kotlin
+        // StateFlow driver. The base class CAS latch already stops `publish`
+        // from accepting further emissions after close().
+    }
 }

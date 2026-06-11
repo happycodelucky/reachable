@@ -46,12 +46,17 @@ internal fun pickTransport(
  *
  * @param satisfied `nw_path_get_status(path) == nw_path_status_satisfied`
  * @param wifi `nw_path_uses_interface_type(path, nw_interface_type_wifi)`
- * @param ethernet `nw_path_uses_interface_type(path, nw_interface_type_wired_ethernet)`
+ * @param ethernet `nw_path_uses_interface_type(path, nw_interface_type_wired)`
  * @param cellular `nw_path_uses_interface_type(path, nw_interface_type_cellular)`
  * @param other `nw_path_uses_interface_type(path, nw_interface_type_other)`
  * @param expensive `nw_path_is_expensive(path)` — cellular or hotspot
  * @param constrained `nw_path_is_constrained(path)` — Low Data Mode active
+ *
+ * The parameter list is deliberately long — one named boolean per platform
+ * primitive keeps the mapping pure and unit-testable from commonTest; hence
+ * the LongParameterList suppression.
  */
+@Suppress("LongParameterList")
 internal fun mapApplePath(
     satisfied: Boolean,
     wifi: Boolean,
@@ -100,7 +105,12 @@ internal fun mapApplePath(
  * @param hasCellular `caps.hasTransport(TRANSPORT_CELLULAR)`
  * @param notMetered `caps.hasCapability(NET_CAPABILITY_NOT_METERED)`
  * @param temporarilyNotMetered `caps.hasCapability(NET_CAPABILITY_TEMPORARILY_NOT_METERED)`
+ *
+ * The parameter list is deliberately long — one named boolean per platform
+ * primitive keeps the mapping pure and unit-testable from commonTest; hence
+ * the LongParameterList suppression.
  */
+@Suppress("LongParameterList")
 internal fun mapAndroidCapabilities(
     hasInternet: Boolean,
     hasValidated: Boolean,

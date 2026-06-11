@@ -49,8 +49,8 @@ public annotation class TestingOnly
  * the highest-quality transport using the priority
  * `WIFI > ETHERNET > CELLULAR > OTHER`.
  *
- * [None] is reported when [ReachabilityStatus.isReachable] is `false`, or when
- * the platform reports a usable path with an unrecognised interface type.
+ * [None] is reported when [ReachabilityStatus.isReachable] is `false`. A
+ * usable path with an unrecognised interface type reports [Other].
  */
 public enum class Transport {
     /** 802.11 Wi-Fi. */
@@ -190,13 +190,13 @@ public interface Reachability : AutoCloseable {
 
     /**
      * Reactive variant of [isReachable]: emits the current reachability
-     * boolean, then a fresh emission whenever it changes. Built off [status]
-     * via `.map { it.isReachable }`, so transport / metering churn that
-     * doesn't change the reachable axis is collapsed (StateFlow conflation).
+     * boolean, then a fresh emission whenever it changes. Transport /
+     * metering churn that doesn't change the reachable axis is collapsed
+     * (StateFlow conflation).
      *
      * Cheaper than wiring your own `status.map { it.isReachable }
      * .distinctUntilChanged()` because the flow is shared across all
-     * collectors and started eagerly at construction time.
+     * collectors and kept current from construction time.
      */
     public val reachable: StateFlow<Boolean>
 
@@ -297,7 +297,8 @@ public interface Reachability : AutoCloseable {
         @TestingOnly
         @OptIn(ExperimentalObjCName::class)
         @ObjCName(swiftName = "installForTesting")
-        public fun installForTesting(override: Reachability?): TestingOverrideHandle = SharedReachabilityHolder.installForTesting(override)
+        public fun installForTesting(override: Reachability?): TestingOverrideHandle =
+            SharedReachabilityHolder.installForTesting(override)
     }
 }
 

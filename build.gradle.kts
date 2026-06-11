@@ -13,6 +13,7 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.skie) apply false
     alias(libs.plugins.ktlint) apply false
+    alias(libs.plugins.detekt) apply false
     // KSP is not used in v1 (no Koin Annotations, no codegen). Add when needed.
 
     // Dokka v2: Kotlin API doc generator. Produces HTML for the public API of
@@ -31,10 +32,17 @@ allprojects {
 }
 
 subprojects {
-    // ktlint wires onto whichever Kotlin plugin is present. CLAUDE.md §3:
-    // "ktlint + detekt must pass."
+    // ktlint + detekt wire onto the KMP plugin — i.e. onto the published
+    // library modules only. CLAUDE.md §3: "ktlint + detekt must pass."
+    //
+    // Deliberate scope: the sample apps (`:androidApp` here; /iOSApp and
+    // /macOSApp outside this Gradle build) are demo scaffolding, not shipped
+    // code, and are intentionally excluded from Kotlin lint and from CI's
+    // check task. Don't "fix" that by widening this hook — if a sample stops
+    // compiling, the fix is in the sample, not the gate.
     pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
         apply(plugin = "org.jlleitschuh.gradle.ktlint")
+        apply(plugin = "io.gitlab.arturbosch.detekt")
     }
 
     plugins.withId("org.jlleitschuh.gradle.ktlint") {
@@ -52,6 +60,18 @@ subprojects {
 
         tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().configureEach {
             exclude { element -> element.file.path.contains("/build/generated/") }
+        }
+    }
+
+    plugins.withId("io.gitlab.arturbosch.detekt") {
+        configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
+            buildUponDefaultConfig = true
+            // detekt's default source resolution only knows JVM layouts
+            // (src/main/kotlin); point it at the module root so every KMP
+            // source set (commonMain, appleMain, androidHostTest, …) is
+            // scanned. The task itself filters to *.kt, and build/ output
+            // is excluded by default.
+            source.setFrom(files("src"))
         }
     }
 }

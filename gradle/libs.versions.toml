@@ -43,7 +43,6 @@ kotlinx-coroutines = "1.10.2"
 kotlinx-atomicfu = "0.32.1"
 
 # --- Other libraries --------------------------------------------------------
-kermit = "2.0.8"
 # androidx.startup — lets the library auto-attach its `Reachability.shared`
 # singleton during the InitializationProvider ContentProvider pass, before
 # Application.onCreate. Tiny dep (~6 KB), shipped as an `implementation` of
@@ -61,7 +60,9 @@ turbine = "1.2.1"
 # --- Lint ------------------------------------------------------------------
 ktlint = "1.8.0"               # The ktlint tool itself.
 ktlintGradle = "14.2.0"        # The org.jlleitschuh.gradle.ktlint Gradle plugin.
-detekt = "1.23.7"
+# detekt 1.23.8 is the latest stable; the 2.x line is alpha-only as of
+# June 2026 and CLAUDE.md §2 bans pre-stable on main.
+detekt = "1.23.8"
 
 
 [libraries]
@@ -73,10 +74,21 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "kotlinx-atomicfu" }
 
 # --- Other ------------------------------------------------------------------
-kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 # androidx.startup runtime — consumed in :reachable's androidMain to host the
 # bundled `ReachabilityInitializer`. See `androidx-startup` version above.
 androidx-startup-runtime = { module = "androidx.startup:startup-runtime", version.ref = "androidx-startup" }
+
+# --- Gradle plugin artifacts (build-logic only) ------------------------------
+# Compile-classpath dependencies for the precompiled convention plugins under
+# /build-logic. Same version refs as the [plugins] aliases below, so the main
+# build and build-logic can never apply different plugin versions.
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+# SKIE's plugin marker artifact — resolves to the real plugin jar without
+# hard-coding Touchlab's internal artifact name.
+skie-gradle-plugin = { module = "co.touchlab.skie:co.touchlab.skie.gradle.plugin", version.ref = "skie" }
+dokka-gradle-plugin = { module = "org.jetbrains.dokka:dokka-gradle-plugin", version.ref = "dokka" }
+vanniktech-maven-publish-gradle-plugin = { module = "com.vanniktech:gradle-maven-publish-plugin", version.ref = "mavenPublish" }
 
 # --- Testing ----------------------------------------------------------------
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
@@ -104,6 +116,7 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 skie = { id = "co.touchlab.skie", version.ref = "skie" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 # kmmbridge-github — currently NOT applied in any module. Kept here so the
 # version pin survives re-introduction. Was previously used in
 # reachable/build.gradle.kts to publish an XCFramework zip to GitHub Packages

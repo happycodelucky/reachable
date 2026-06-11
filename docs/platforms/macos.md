@@ -56,11 +56,11 @@ The sample `macOSApp` declares both:
 </dict>
 ```
 
-## Wired Ethernet — known limitation
+## Wired Ethernet
 
-Wired Ethernet on macOS surfaces as `Transport.Other`, not
-`Transport.Ethernet`. This is a Kotlin/Native cinterop gap. See
-[Concepts → Validated vs available](../concepts/validated-vs-available.md#wired-ethernet-on-macos-known-limitation).
+Wired connections — built-in Ethernet and USB/Thunderbolt adapters —
+surface as `Transport.Ethernet` via `nw_interface_type_wired`. See
+[Concepts → Validated vs available](../concepts/validated-vs-available.md#wired-ethernet-on-apple).
 
 ## What's different from iOS
 
