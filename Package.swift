@@ -1,7 +1,11 @@
 // swift-tools-version:6.0
 import PackageDescription
 
+// BEGIN KMMBRIDGE VARIABLES BLOCK (do not edit)
+let remoteKotlinUrl = "https://github.com/happycodelucky/reachable/releases/download/v0.13.0/Reachable.xcframework.zip"
+let remoteKotlinChecksum = "9c2992290156e6005f3681e36f62eba82e536599296780574d278a6b53266709"
 let packageName = "Reachable"
+// END KMMBRIDGE BLOCK
 
 let package = Package(
     name: packageName,
@@ -18,7 +22,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: packageName,
-            path: "./reachable/build/XCFrameworks/debug/\(packageName).xcframework"
+            url: remoteKotlinUrl,
+            checksum: remoteKotlinChecksum
         )
         ,
     ]
