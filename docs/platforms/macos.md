@@ -14,8 +14,8 @@ let reachability: any Reachability = Reachability.shared
 ```
 
 `Reachability.shared` is a process-lifetime singleton provided by the
-same Swift extension as on iOS (`src/appleMain/swift/Reachability+Shared.swift`,
-compiled into the `Reachable` module by SKIE). On first access, constructs
+same Swift extension as on iOS, compiled into the `Reachable` module.
+On first access, constructs
 an `nw_path_monitor`-backed observer and starts it eagerly. Calling
 `close()` on this instance is a no-op.
 

@@ -19,11 +19,9 @@ let reachability: any Reachability = Reachability.shared
 it constructs an `nw_path_monitor`-backed observer and starts it eagerly.
 Subsequent accesses return the same instance.
 
-The Swift `Reachability.shared` property is provided by an in-framework
-Swift extension (`src/appleMain/swift/Reachability+Shared.swift`), which
-SKIE auto-discovers and compiles into the `Reachable` module. Consumers
-don't need any additional configuration — `Reachability.shared` just
-works.
+The Swift `Reachability.shared` property is provided by a Swift
+extension compiled into the `Reachable` module. Consumers don't need any
+additional configuration — `Reachability.shared` just works.
 
 Calling `close()` on `Reachability.shared` is an intentional no-op — the
 singleton's lifetime is the process.
@@ -38,9 +36,9 @@ import Reachable
 let reachability: any Reachability = Reachability()
 ```
 
-`Reachability()` is a top-level Swift function that SKIE generates from the
-top-level Kotlin factory `fun Reachability(): Reachability` in
-`appleMain/Reachability.apple.kt`. Construction:
+`Reachability()` is a top-level Swift function bridged from the
+top-level Kotlin factory `fun Reachability(): Reachability`.
+Construction:
 
 1. Creates a per-instance serial dispatch queue
    (`dispatch_queue_create("dev.reachable.monitor", null)`).

@@ -15,7 +15,7 @@ A native Swift Package Manager distribution is planned for a later release
 | iOS / iPadOS | iOS 18     |
 | macOS        | macOS 15   |
 | Android      | API 30 (Android 11), `arm64-v8a` only |
-| Kotlin       | 2.3.x (K2). The upper bound tracks SKIE — see [SKIE releases](https://github.com/touchlab/SKIE/releases). |
+| Kotlin       | 2.3.x (K2) |
 
 ## Gradle (Android, JVM, KMP)
 
@@ -109,14 +109,14 @@ when the block throws.
 
 There's no standalone `.xcframework` or `Package.swift` published in v0.1.
 Pure-Swift apps that don't already use Kotlin Multiplatform can't consume
-the library at the moment. A native SPM distribution — either as a
-KMMBridge-style XCFramework hosted on GitHub Packages or as a flat
-SwiftPackage backed by the published klibs — is on the v0.2 plan.
+the library at the moment. A native SPM distribution — either as an
+XCFramework hosted on GitHub Packages or as a Swift package backed by
+the published klibs — is on the v0.2 plan.
 
 If you're working from a KMP project today, the iOS / macOS targets are
 consumed transparently via the `kotlinMultiplatform` metadata published
-alongside the Android AAR. SKIE bridging happens at your project's
-framework build time, not the library's.
+alongside the Android AAR. The Swift surface is produced at your
+project's framework build time, not the library's.
 
 ## Local development override
 
