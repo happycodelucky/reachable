@@ -36,8 +36,8 @@ subprojects {
     // ktlint + detekt wire onto the KMP plugin — i.e. onto the published
     // library modules only. CLAUDE.md §3: "ktlint + detekt must pass."
     //
-    // Deliberate scope: the sample apps (`:androidApp` here; /iOSApp and
-    // /macOSApp outside this Gradle build) are demo scaffolding, not shipped
+    // Deliberate scope: the sample apps (`:androidApp` here; /apps/ios and
+    // /apps/macos outside this Gradle build) are demo scaffolding, not shipped
     // code, and are intentionally excluded from Kotlin lint and from CI's
     // check task. Don't "fix" that by widening this hook — if a sample stops
     // compiling, the fix is in the sample, not the gate.

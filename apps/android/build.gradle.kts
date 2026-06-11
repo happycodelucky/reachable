@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 /*
- * Reachable — androidApp sample.
+ * Reachable — apps/android sample.
  *
  * Minimal SwiftUI-equivalent: a Jetpack Compose UI that subscribes to
  * `reachability.status` and renders the live ReachabilityStatus. Useful as

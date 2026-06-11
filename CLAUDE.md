@@ -89,9 +89,9 @@ Everything else we author — classes, files, top-level functions, top-level `va
   /src/iosMain
   /src/macosMain
   /src/wasmJsMain     stretch
-/iOSApp               Xcode project, native SwiftUI, consumes /shared via SPM
-/androidApp           Android entrypoint, native Jetpack Compose UI
-/macOSApp             macOS desktop, native SwiftUI/AppKit
+/apps/ios             Xcode project, native SwiftUI, consumes /shared via SPM
+/apps/android         Android entrypoint, native Jetpack Compose UI
+/apps/macos           macOS desktop, native SwiftUI/AppKit
 /webApp               native web (stretch)
 ```
 
@@ -323,7 +323,7 @@ Two channels, no overlap:
 - Don't vendor `XCFramework` zips into the repo. Everything flows through GitHub Release assets + the committed `Package.swift`.
 - `Package.swift` is generated (`kmmBridgePublish` writes the released form, `spmDevBuild` the local-dev form). Don't hand-edit it, and never commit the local-dev form.
 
-**Local development override:** the sample apps consume the root `Package.swift` as a local package. Run `./gradlew :reachable:spmDevBuild` (`mise run spm:dev`) to rebuild the debug `XCFramework` and flip `Package.swift` to a local path; `mise run spm:restore` restores the committed version. Documented in `iOSApp/README.md`.
+**Local development override:** the sample apps consume the root `Package.swift` as a local package. Run `./gradlew :reachable:spmDevBuild` (`mise run spm:dev`) to rebuild the debug `XCFramework` and flip `Package.swift` to a local path; `mise run spm:restore` restores the committed version. Documented in `apps/ios/README.md`.
 
 ---
 

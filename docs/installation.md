@@ -179,7 +179,7 @@ repositories {
 `mise run publish:local` overwrites the cached artifact; the consumer picks
 up the change on the next Gradle sync.
 
-See [Publishing](publishing.md) for the full local + Maven Central pipeline.
+See [`.github/PUBLISHING.md`](https://github.com/happycodelucky/reachable/blob/main/.github/PUBLISHING.md) for the full local + Maven Central pipeline.
 
 ## Verification
 

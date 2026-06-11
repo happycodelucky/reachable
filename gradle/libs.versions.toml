@@ -49,7 +49,7 @@ kotlinx-atomicfu = "0.33.0"
 # :reachable so consumers don't need to add it themselves.
 androidx-startup = "1.2.0"
 
-# --- Sample-app deps (androidApp only — iOS / macOS samples consume via SPM) -
+# --- Sample-app deps (apps/android only — iOS / macOS samples consume via SPM) -
 androidx-activity-compose = "1.13.0"
 androidx-lifecycle-runtime-compose = "2.10.0"
 androidx-compose-bom = "2026.05.01"

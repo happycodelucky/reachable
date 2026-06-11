@@ -10,7 +10,7 @@ Wi-Fi (Low Data Mode folds into the metered signal).
 
 - Xcode 16+ (the project targets iOS 18.0). Xcode itself is not managed by
   mise; install the latest stable Xcode that the current SKIE release
-  supports (see [docs/contributing.md](../docs/contributing.md)).
+  supports (see [CONTRIBUTING.md](../../CONTRIBUTING.md)).
 - [`mise`](https://mise.jdx.dev) for everything else. From the repo root:
   ```bash
   brew install mise
