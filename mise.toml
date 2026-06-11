@@ -20,11 +20,11 @@
 
 [tools]
 java        = "temurin-21.0.11+10.0.LTS"   # CLAUDE.md §2 — JDK 21 LTS, Apple Silicon aarch64.
-gradle      = "9.4.1"                       # Matches gradle/wrapper/gradle-wrapper.properties.
+gradle      = "9.5.1"                       # Matches gradle/wrapper/gradle-wrapper.properties.
 python      = "3.12.13"                     # docs/requirements.txt mkdocs toolchain.
 xcodegen    = "2.45.4"                      # apps/ios, apps/macos project.yml → .xcodeproj.
-gh          = "2.92.0"                      # release.yml uses `gh release create`.
-swiftlint   = "0.63.2"                      # apps/ios, apps/macos Swift lint.
+gh          = "2.94.0"                      # release.yml uses `gh release create`.
+swiftlint   = "0.63.3"                      # apps/ios, apps/macos Swift lint.
 swiftformat = "0.61.1"                      # apps/ios, apps/macos Swift formatter.
 
 # Deliberately NOT pinned here:
