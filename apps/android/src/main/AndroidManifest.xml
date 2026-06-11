@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Reachable — androidApp sample manifest.
+  Reachable — apps/android sample manifest.
 
   ACCESS_NETWORK_STATE merges in from the `:reachable` library's manifest, so
   this app doesn't need to redeclare it. INTERNET is also unnecessary for the

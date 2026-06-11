@@ -59,8 +59,8 @@ include(":reachable-testing")
 // --- Sample apps (CLAUDE.md §4) -----------------------------------------------
 // The Android sample is a normal Gradle subproject because Compose + AGP play
 // best inside the same Gradle build that produces the AAR. The iOS and macOS
-// samples are standalone Xcode projects under /iOSApp and /macOSApp; they
+// samples are standalone Xcode projects under /apps/ios and /apps/macos; they
 // consume the shared module via SPM, NOT Gradle, and so are deliberately not
-// included here. See iOSApp/README.md and macOSApp/README.md.
+// included here. See apps/ios/README.md and apps/macos/README.md.
 include(":androidApp")
-project(":androidApp").projectDir = file("androidApp")
+project(":androidApp").projectDir = file("apps/android")

@@ -22,8 +22,8 @@ DerivedData/
 *.xccheckout
 
 # --- Sample apps: Xcode projects are generated from project.yml via xcodegen ---
-iOSApp/iOSApp.xcodeproj/
-macOSApp/macOSApp.xcodeproj/
+apps/ios/iOSApp.xcodeproj/
+apps/macos/macOSApp.xcodeproj/
 
 # --- mise: per-user version overrides ---
 .mise.local.toml

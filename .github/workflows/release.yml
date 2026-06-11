@@ -309,7 +309,7 @@ jobs:
         if: ${{ inputs.dryRun }}
         env:
           # Vanniktech reads these four properties; Gradle auto-populates
-          # them from ORG_GRADLE_PROJECT_* env vars. See docs/publishing.md.
+          # them from ORG_GRADLE_PROJECT_* env vars. See .github/PUBLISHING.md.
           ORG_GRADLE_PROJECT_mavenCentralUsername:       ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword:       ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           # In-memory GPG key: paste the full ASCII-armoured private key

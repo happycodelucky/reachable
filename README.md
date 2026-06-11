@@ -57,7 +57,7 @@ Highlights:
   [Compose binding](docs/recipes/compose-binding.md),
   [React to changes](docs/recipes/react-to-changes.md),
   [Captive portals](docs/recipes/captive-portal.md).
-- [Contributing](docs/contributing.md): development environment,
+- [Contributing](CONTRIBUTING.md): development environment,
   reporting bugs, PR expectations.
 
 ---
@@ -338,8 +338,8 @@ mise run build:ios      # iOS device + simulator debug frameworks
 mise run build:macos    # macOS desktop debug framework
 mise run build          # release Reachable.xcframework (sample-app local SPM)
 mise run build:android  # Android AAR
-mise run open:ios       # spm:dev + xcodegen + open iOSApp in Xcode
-mise run open:macos     # spm:dev + xcodegen + open macOSApp in Xcode
+mise run open:ios       # spm:dev + xcodegen + open apps/ios in Xcode
+mise run open:macos     # spm:dev + xcodegen + open apps/macos in Xcode
 ```
 
 Each task is a thin wrapper over `./gradlew` (or `xcodegen` for the
@@ -347,8 +347,8 @@ Each task is a thin wrapper over `./gradlew` (or `xcodegen` for the
 run `mise tasks` to list everything. Raw `./gradlew` invocations still
 work — mise just ensures everyone (and CI) runs the same versions.
 
-For the iOS and macOS sample apps see [`iOSApp/README.md`](./iOSApp/README.md)
-and [`macOSApp/README.md`](./macOSApp/README.md).
+For the iOS and macOS sample apps see [`apps/ios/README.md`](./apps/ios/README.md)
+and [`apps/macos/README.md`](./apps/macos/README.md).
 
 ---
 

@@ -15,17 +15,17 @@
 #   mise install
 #
 # Xcode is NOT managed by mise. Install the latest stable Xcode that SKIE
-# supports; the docs/contributing.md "Prerequisites" section records the
+# supports; the CONTRIBUTING.md "Prerequisites" section records the
 # current minimum.
 
 [tools]
 java        = "temurin-21.0.11+10.0.LTS"   # CLAUDE.md §2 — JDK 21 LTS, Apple Silicon aarch64.
 gradle      = "9.4.1"                       # Matches gradle/wrapper/gradle-wrapper.properties.
 python      = "3.12.13"                     # docs/requirements.txt mkdocs toolchain.
-xcodegen    = "2.45.4"                      # iOSApp/macOSApp project.yml → .xcodeproj.
+xcodegen    = "2.45.4"                      # apps/ios, apps/macos project.yml → .xcodeproj.
 gh          = "2.92.0"                      # release.yml uses `gh release create`.
-swiftlint   = "0.63.2"                      # iOSApp/macOSApp Swift lint.
-swiftformat = "0.61.1"                      # iOSApp/macOSApp Swift formatter.
+swiftlint   = "0.63.2"                      # apps/ios, apps/macos Swift lint.
+swiftformat = "0.61.1"                      # apps/ios, apps/macos Swift formatter.
 
 # Deliberately NOT pinned here:
 #   - kotlin: gradle/libs.versions.toml owns it (CLAUDE.md §2).
@@ -43,7 +43,7 @@ swiftformat = "0.61.1"                      # iOSApp/macOSApp Swift formatter.
 
 # Both published modules are listed explicitly. Gradle's `check` is
 # per-project — `:reachable:check` alone never runs `:reachable-testing`'s
-# test suite. The sample app (`:androidApp`) is deliberately NOT listed:
+# test suite. The sample app (`:androidApp` at apps/android) is deliberately NOT listed:
 # samples are demo scaffolding, excluded from lint and CI by policy (see
 # the subprojects block in build.gradle.kts).
 [tasks.check]
@@ -65,15 +65,15 @@ run = "./gradlew :reachable:ktlintFormat :reachable-testing:ktlintFormat"
 [tasks."lint:swift"]
 description = "Run swiftlint across the iOS and macOS sample apps."
 run = """
-swiftlint lint --strict iOSApp
-swiftlint lint --strict macOSApp
+swiftlint lint --strict apps/ios
+swiftlint lint --strict apps/macos
 """
 
 [tasks."format:swift"]
 description = "Run swiftformat across the iOS and macOS sample apps."
 run = """
-swiftformat iOSApp
-swiftformat macOSApp
+swiftformat apps/ios
+swiftformat apps/macos
 """
 
 # --- build -----------------------------------------------------------------
@@ -122,26 +122,30 @@ description = "Restore the committed (released) /Package.swift after spm:dev rew
 run = "git restore Package.swift"
 
 [tasks."xcodeproj:ios"]
-description = "Generate iOSApp/iOSApp.xcodeproj from project.yml."
-dir = "iOSApp"
+description = "Generate apps/ios/iOSApp.xcodeproj from project.yml."
+dir = "apps/ios"
 run = "xcodegen generate --spec project.yml"
 
 [tasks."xcodeproj:macos"]
-description = "Generate macOSApp/macOSApp.xcodeproj from project.yml."
-dir = "macOSApp"
+description = "Generate apps/macos/macOSApp.xcodeproj from project.yml."
+dir = "apps/macos"
 run = "xcodegen generate --spec project.yml"
 
 [tasks."open:ios"]
-description = "spm:dev + xcodegen + open iOSApp in Xcode."
+description = "spm:dev + xcodegen + open apps/ios in Xcode."
 depends = ["spm:dev", "xcodeproj:ios"]
-dir = "iOSApp"
+dir = "apps/ios"
 run = "open iOSApp.xcodeproj"
 
 [tasks."open:macos"]
-description = "spm:dev + xcodegen + open macOSApp in Xcode."
+description = "spm:dev + xcodegen + open apps/macos in Xcode."
 depends = ["spm:dev", "xcodeproj:macos"]
-dir = "macOSApp"
+dir = "apps/macos"
 run = "open macOSApp.xcodeproj"
+
+[tasks."open:android"]
+description = "Open apps/android in Android Studio."
+run = "open -a 'Android Studio' ."
 
 # --- docs ------------------------------------------------------------------
 
@@ -177,5 +181,5 @@ run = "mkdocs build --strict"
 description = "Gradle clean + drop generated xcodeproj bundles."
 run = """
 ./gradlew clean
-rm -rf iOSApp/iOSApp.xcodeproj macOSApp/macOSApp.xcodeproj
+rm -rf apps/ios/iOSApp.xcodeproj apps/macos/macOSApp.xcodeproj
 """

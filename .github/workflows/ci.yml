@@ -53,7 +53,7 @@ jobs:
       # in both published modules (:reachable, :reachable-testing). Sample
       # apps are deliberately excluded — see mise.toml.
       # `mise run build` assembles Reachable.xcframework — the artifact that
-      # the sample apps under /iOSApp and /macOSApp consume via the root
+      # the sample apps under /apps/ios and /apps/macos consume via the root
       # Package.swift. Maven Central publishing is a separate workflow
       # (.github/workflows/release.yml). The CI version stamp is passed
       # through to Gradle via ORG_GRADLE_PROJECT_version — the standard

@@ -67,13 +67,13 @@ mise run build:android  # Android AAR
 ./gradlew :reachable:linkDebugFrameworkMacosArm64
 ./gradlew :reachable:assembleReachableXCFramework
 ./gradlew :reachable:assemble
-./gradlew :androidApp:assembleDebug
+./gradlew :androidApp:assembleDebug   # project is under apps/android
 ```
 
 For the iOS and macOS samples, `mise run open:ios` (and `open:macos`) chains
 `spm:dev` → `xcodegen` → opens the project in Xcode. See
-[iOSApp/README.md](https://github.com/happycodelucky/reachable/blob/main/iOSApp/README.md)
-and `macOSApp/README.md` for the iteration loop.
+[apps/ios/README.md](https://github.com/happycodelucky/reachable/blob/main/apps/ios/README.md)
+and `apps/macos/README.md` for the iteration loop.
 
 ## Building the docs
 
@@ -91,7 +91,7 @@ from the site navigation, every recipe has at least one code block.
 ## Pull request expectations
 
 - `mise run check` passes locally.
-- New public API has KDoc and an [API design](concepts/api-design.md)
+- New public API has KDoc and an [API design](docs/concepts/api-design.md)
   rationale (a sentence in the PR description is usually enough).
 - New behavior has a test in `commonTest` or the relevant platform test
   source set.
@@ -106,4 +106,4 @@ docs validation) on every PR.
 Releases publish to Maven Central via vanniktech maven-publish, then tag
 the commit and create a GitHub Release with auto-generated notes. The
 mechanics, one-time credential setup, and the dry-run / live-publish
-toggle live in [Publishing](publishing.md).
+toggle live in [`.github/PUBLISHING.md`](.github/PUBLISHING.md).

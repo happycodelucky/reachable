@@ -171,7 +171,7 @@ model.
 ## Testing this library locally
 
 Toolchain bootstrap once per machine — `brew install mise && mise install`
-from the repo root. See [docs/contributing.md](../docs/contributing.md) for
+from the repo root. See [CONTRIBUTING.md](../CONTRIBUTING.md) for
 the full prerequisite list (Xcode, Android SDK).
 
 ```bash
