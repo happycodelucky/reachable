@@ -13,9 +13,9 @@
 
 pluginManagement {
     // Convention plugins (`reachable.kmp-library`, `reachable.publish`) live
-    // in the build-logic included build; versions still come from
-    // gradle/libs.versions.toml, which build-logic shares.
-    includeBuild("build-logic")
+    // in gradle/plugins; versions still come from gradle/libs.versions.toml,
+    // which gradle/plugins shares.
+    includeBuild("gradle/plugins")
     repositories {
         google {
             content {

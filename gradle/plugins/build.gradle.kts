@@ -1,10 +1,10 @@
 /*
- * Reachable — build-logic plugin host.
+ * Reachable — gradle/plugins plugin host.
  *
  * `kotlin-dsl` compiles the precompiled script plugins under
  * src/main/kotlin. The dependencies below put the third-party plugin
  * classes on the convention plugins' compile classpath; versions come
- * from the shared catalog (gradle/libs.versions.toml), so build-logic
+ * from the shared catalog (gradle/libs.versions.toml), so gradle/plugins
  * and the main build can never disagree on a plugin version.
  */
 
