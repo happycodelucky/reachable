@@ -2,9 +2,10 @@
 
 ## 1. Add the dependency
 
-From Maven Central. Apple consumers come in via Kotlin Multiplatform's
-iOS / macOS klibs (no separate Swift Package Manager artifact in v0.1;
-see [Installation](installation.md#apple-side-spm-roadmap)).
+From Maven Central for Gradle projects; Kotlin Multiplatform consumers get
+the iOS / macOS klibs through the same artifact. Pure-Swift apps add the
+repo as a Swift package instead — see
+[Installation → Swift Package Manager](installation.md#swift-package-manager).
 
 === "Android (Gradle)"
 

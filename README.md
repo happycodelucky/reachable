@@ -88,13 +88,23 @@ dependencies {
 }
 ```
 
+Pure-Swift apps (no Kotlin toolchain) consume Reachable via Swift Package
+Manager instead — a prebuilt, SKIE-enhanced `Reachable.xcframework` attached
+to each GitHub Release:
+
+```swift
+// Package.swift — or Xcode: File → Add Package Dependencies…
+dependencies: [
+    .package(url: "https://github.com/happycodelucky/reachable.git", from: "0.12.11"),
+]
+```
+
 A companion `reachable-testing` artifact ships `FakeReachability` and the
 `withFakeReachability { }` helper — add it as a test dependency at the same
-version. Pure-Swift apps that don't use Kotlin Multiplatform aren't supported
-yet; a native Swift Package Manager distribution is on the roadmap. See the
+version (Maven Central only; no SPM distribution). See the
 [Installation guide](https://happycodelucky.github.io/reachable/installation/)
-for platform floors, the testing artifact, the Apple-side SPM roadmap, and the
-local-development override.
+for platform floors, the testing artifact, and the local-development
+override.
 
 ---
 

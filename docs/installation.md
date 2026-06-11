@@ -1,12 +1,17 @@
 # Installation
 
-Reachable publishes to Maven Central as a Kotlin Multiplatform artifact. The
-Android AAR is consumed directly from Gradle. Apple consumers come in via the
-same artifact's `iosArm64`, `iosSimulatorArm64`, and `macosArm64` klibs —
-i.e. by depending on `:reachable` from a KMP project.
+Reachable ships through two channels:
 
-A native Swift Package Manager distribution is planned for a later release
-(see [Apple-side SPM](#apple-side-spm-roadmap) below).
+| Channel | For | Artifacts |
+|---|---|---|
+| **Maven Central** | Gradle — Android, JVM, Kotlin Multiplatform | Android AAR, `kotlinMultiplatform` metadata, per-target klibs (`iosArm64`, `iosSimulatorArm64`, `macosArm64`) |
+| **Swift Package Manager** | Pure-Swift iOS / macOS apps, no Kotlin toolchain | Prebuilt [SKIE](https://skie.touchlab.co/)-enhanced `Reachable.xcframework`, hosted as a GitHub Release asset |
+
+Kotlin Multiplatform projects should use the Maven artifact from
+`commonMain` — KMP resolves the right per-target slice automatically, and
+SKIE bridging happens at *your* project's framework build. The Swift
+package is for apps with no Kotlin in them at all — see
+[Swift Package Manager](#swift-package-manager) below.
 
 ## Platform floors
 
@@ -81,8 +86,9 @@ as a test dependency:
     }
     ```
 
-The testing artifact does not ship as an XCFramework or a Swift Package —
-it is consumed via KMP klibs from Maven Central, not via SPM.
+The testing artifact does not ship as an XCFramework or a Swift package —
+only the main `reachable` artifact has an SPM distribution. `FakeReachability`
+is consumed via KMP klibs from Maven Central.
 
 ### Basic usage
 
@@ -105,18 +111,50 @@ fun deviceIsOnline() = runTest {
 runs the block, then uninstalls and closes the fake in `finally` — even
 when the block throws.
 
-## Apple-side SPM (roadmap)
+## Swift Package Manager
 
-There's no standalone `.xcframework` or `Package.swift` published in v0.1.
-Pure-Swift apps that don't already use Kotlin Multiplatform can't consume
-the library at the moment. A native SPM distribution — either as a
-KMMBridge-style XCFramework hosted on GitHub Packages or as a flat
-SwiftPackage backed by the published klibs — is on the v0.2 plan.
+Pure-Swift apps consume Reachable as a binary Swift package: a prebuilt,
+SKIE-enhanced `Reachable.xcframework` with `iosArm64`, `iosSimulatorArm64`,
+and `macosArm64` slices. No Kotlin toolchain, no Gradle, no authentication —
+the package manifest lives at the root of this repository and the binary is
+a public GitHub Release asset, pinned by sha256 checksum in the manifest.
 
-If you're working from a KMP project today, the iOS / macOS targets are
-consumed transparently via the `kotlinMultiplatform` metadata published
-alongside the Android AAR. SKIE bridging happens at your project's
-framework build time, not the library's.
+=== "Xcode"
+
+    1. **File → Add Package Dependencies…**
+    2. Enter `https://github.com/happycodelucky/reachable.git`.
+    3. Keep **Up to Next Major Version** with the suggested version.
+    4. Add the **Reachable** product to your app target.
+
+=== "Package.swift"
+
+    ```swift
+    dependencies: [
+        .package(url: "https://github.com/happycodelucky/reachable.git", from: "{{ version }}"),
+    ],
+    targets: [
+        .target(
+            name: "MyApp",
+            dependencies: [
+                .product(name: "Reachable", package: "reachable"),
+            ]
+        ),
+    ]
+    ```
+
+Then `import Reachable`. The SKIE bridge is baked into the framework, so
+`StateFlow` arrives as a Swift `AsyncSequence`, sealed types `switch`
+exhaustively via `onEnum(of:)`, and `suspend` functions are `async throws`.
+
+Each release tag carries a `Package.swift` whose binary target references
+that release's `Reachable.xcframework.zip` asset, so `swift package
+resolve` downloads a prebuilt framework instead of compiling Kotlin.
+
+If you're working from a KMP project, don't add the Swift package — the
+iOS / macOS targets are consumed transparently via the
+`kotlinMultiplatform` metadata published alongside the Android AAR, and
+SKIE bridging happens at your project's framework build time, not the
+library's.
 
 ## Local development override
 

@@ -54,18 +54,21 @@ regenerating when `project.yml` changes.
 ## How the Reachable dependency is wired
 
 `project.yml` declares a local Swift Package at `path: ../`. That resolves
-to `/Package.swift` at the repo root, which `./gradlew :reachable:spmDevBuild`
-generates and points at the locally-built debug `Reachable.xcframework`.
-Xcode re-reads the binary on every open, so the edit-build cycle for
-Kotlin code is:
+to `/Package.swift` at the repo root. KMMBridge's
+`./gradlew :reachable:spmDevBuild` rewrites it to point at the
+locally-built debug `Reachable.xcframework`. Xcode re-reads the binary on
+every open, so the edit-build cycle for Kotlin code is:
 
 1. Edit Kotlin under `/reachable/src/...`
 2. `mise run spm:dev` (or `./gradlew :reachable:spmDevBuild` from the repo root)
 3. Rebuild the iOSApp target in Xcode
 
-The local `Package.swift` is a development-only artifact (gitignored).
-Released versions of Reachable are published to Maven Central as a Kotlin
-Multiplatform artifact, not as a standalone Swift Package — downstream
-apps consume the library from a KMP context. A native Swift Package
-Manager distribution is on the v0.2 plan; see
-[docs/installation.md](../docs/installation.md#apple-side-spm-roadmap).
+`/Package.swift` is committed, and the committed form is the *released*
+one: a remote `.binaryTarget(url:checksum:)` referencing the
+`Reachable.xcframework.zip` asset on the GitHub Release for the latest
+version tag — that's what SPM consumers resolve when they add this repo
+as a package (see
+[docs/installation.md](../docs/installation.md#swift-package-manager)).
+`spm:dev` flips it to a local `.binaryTarget(path:)` for iteration; that
+rewrite is working-tree-only — don't commit it. `mise run spm:restore`
+puts the committed version back.
