@@ -349,7 +349,7 @@ Two channels, no overlap:
 
 When starting any task:
 
-1. Read this file. Read `gradle/libs.versions.toml`.
+1. Read this file. Read `gradle/libs.versions.toml`. Skim `.claude/lessons/LESSONS.md`.
 2. Adding a dependency? Web-search the latest stable version first. Don't invent versions.
 3. Need platform-specific behavior? Walk Section 5 in order. Don't skip to `expect`/`actual`.
 4. Considering a hand-written replacement? Section 6 process. Default answer is "use the library."
@@ -357,6 +357,8 @@ When starting any task:
 6. Done means: `./gradlew check` passes and `./gradlew :shared:linkDebugFrameworkIosArm64` builds clean.
 7. Opting into experimental APIs? One-line comment explaining what's experimental and the rollback path.
 8. Wasm gap? `// TODO(wasm)` and ship Tier 1.
+9. Stuck? Grep `.claude/lessons/LESSONS.md`.
+10. Learned something? Add to `.claude/lessons/LESSONS.md` immediately.
 
 ---
 
