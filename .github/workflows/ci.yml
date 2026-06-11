@@ -48,8 +48,10 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Computed CI version: $VERSION"
 
-      # `mise run check` runs ktlint + every unit test on every target
-      # (iosSimulatorArm64Test, macosArm64Test, testAndroidHostTest).
+      # `mise run check` runs ktlint + detekt + every unit test on every
+      # target (iosSimulatorArm64Test, macosArm64Test, testAndroidHostTest)
+      # in both published modules (:reachable, :reachable-testing). Sample
+      # apps are deliberately excluded — see mise.toml.
       # `mise run build` assembles Reachable.xcframework — the artifact that
       # the sample apps under /iOSApp and /macOSApp consume via the root
       # Package.swift. Maven Central publishing is a separate workflow
@@ -77,6 +79,6 @@ jobs:
         with:
           name: test-reports-${{ steps.version.outputs.VERSION }}
           path: |
-            reachable/build/reports/tests/
-            reachable/build/reports/ktlint/
+            reachable/build/reports/
+            reachable-testing/build/reports/
           if-no-files-found: ignore

@@ -61,7 +61,7 @@ For each `nw_path_t` the update handler receives:
 | `isReachable`          | `nw_path_get_status(path) == nw_path_status_satisfied`              |
 | `transport.Wifi`       | `nw_path_uses_interface_type(path, nw_interface_type_wifi)`         |
 | `transport.Cellular`   | `nw_path_uses_interface_type(path, nw_interface_type_cellular)`     |
-| `transport.Ethernet`   | always `false` — see [Wired Ethernet limitation](../concepts/validated-vs-available.md#wired-ethernet-on-macos-known-limitation) |
+| `transport.Ethernet`   | `nw_path_uses_interface_type(path, nw_interface_type_wired)`        |
 | `transport.Other`      | `nw_path_uses_interface_type(path, nw_interface_type_other)`        |
 | `isDataMetered`        | `nw_path_is_expensive(path)` OR `nw_path_is_constrained(path)` — cellular, hotspot, or Low Data Mode |
 

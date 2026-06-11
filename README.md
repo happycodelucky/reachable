@@ -52,7 +52,7 @@ Highlights:
 - [Concepts → Lifecycle](docs/concepts/lifecycle.md): when to construct,
   when to close, threading.
 - [Concepts → Validated vs available](docs/concepts/validated-vs-available.md):
-  why `INTERNET + VALIDATED`, the wired-Ethernet quirk, captive portals.
+  why `INTERNET + VALIDATED`, wired-Ethernet mapping, captive portals.
 - Recipes: [SwiftUI binding](docs/recipes/swiftui-binding.md),
   [Compose binding](docs/recipes/compose-binding.md),
   [React to changes](docs/recipes/react-to-changes.md),
@@ -236,15 +236,13 @@ normal-protection permission, so no runtime grant is needed.
 | Reachability backend             | `nw_path_monitor` (satisfied)      | `nw_path_monitor` (satisfied)      | `NetworkCallback` (`INTERNET + VALIDATED`) |
 | Captive-portal handling          | OS-internal probe                  | OS-internal probe                  | `NET_CAPABILITY_VALIDATED`              |
 | `Transport.Wifi` / `Cellular`    | yes                                | yes                                | yes                                     |
-| `Transport.Ethernet`             | n/a                                | **falls through to `Other`** (cinterop gap) | yes (`TRANSPORT_ETHERNET`)              |
+| `Transport.Ethernet`             | yes (USB-C / dock adapters)        | yes (`nw_interface_type_wired`)    | yes (`TRANSPORT_ETHERNET`)              |
 | `isDataMetered = true`           | `nw_path_is_expensive \|\| nw_path_is_constrained` | `nw_path_is_expensive \|\| nw_path_is_constrained` | `!(NET_CAPABILITY_NOT_METERED \|\| TEMPORARILY_NOT_METERED)` |
 | Status seeded synchronously      | no (first emission within tens of ms) | no                                 | **yes** (from `activeNetwork`)          |
 
 Apple's Low Data Mode signal (`nw_path_is_constrained`) folds into
 `isDataMetered` alongside `nw_path_is_expensive`; there's no separate
-"Low Data Mode" axis in the public API. The macOS Ethernet cinterop gap
-is documented in
-[Concepts → Validated vs available](docs/concepts/validated-vs-available.md).
+"Low Data Mode" axis in the public API.
 
 ---
 

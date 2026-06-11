@@ -131,6 +131,16 @@ internal class AndroidReachability internal constructor() : StateFlowReachabilit
 
         seedFromActiveNetwork(cm)
         cm.registerNetworkCallback(request, cb)
+
+        // close() may have completed between the isClosed check above and the
+        // registration — onClose() saw null refs (or an unregistered callback)
+        // and had nothing to tear down, so the registration would outlive the
+        // instance for the rest of the process. Roll it back here. Android
+        // also hard-caps an app at 100 registered callbacks, so a leak isn't
+        // just dead weight.
+        if (isClosed) {
+            runCatching { cm.unregisterNetworkCallback(cb) }
+        }
     }
 
     override fun onClose() {

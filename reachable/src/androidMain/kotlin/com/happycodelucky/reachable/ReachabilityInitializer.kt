@@ -42,9 +42,8 @@ internal class ReachabilityInitializer : Initializer<Reachability> {
         // Application.onCreate, but tests may install an override earlier in
         // the process), `shared` won't be `NonClosingReachability`. In that case
         // skip attach and return the override as-is; tests own the fake's lifecycle.
-        val nonClosing = shared as? NonClosingReachability ?: return shared
-        val underlying = nonClosing.unwrap() as? AndroidReachability ?: return shared
-        underlying.attach(context.applicationContext)
+        val underlying = (shared as? NonClosingReachability)?.unwrap() as? AndroidReachability
+        underlying?.attach(context.applicationContext)
         return shared
     }
 

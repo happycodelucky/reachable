@@ -33,6 +33,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Network.nw_interface_type_cellular
 import platform.Network.nw_interface_type_other
 import platform.Network.nw_interface_type_wifi
+import platform.Network.nw_interface_type_wired
 import platform.Network.nw_path_get_status
 import platform.Network.nw_path_is_constrained
 import platform.Network.nw_path_is_expensive
@@ -99,16 +100,12 @@ internal class AppleReachability : StateFlowReachability() {
      */
     private fun toStatus(path: platform.Network.nw_path_t): ReachabilityStatus {
         val satisfied = nw_path_get_status(path) == nw_path_status_satisfied
-        // K/N's `platform.Network` cinterop does not expose
-        // `nw_interface_type_wired_ethernet` (the constant exists in Apple's
-        // headers but isn't surfaced by the binding generator at this Kotlin
-        // version). Wired Ethernet on macOS / Mac Catalyst therefore falls
-        // through to `nw_interface_type_other` and surfaces as `Transport.Other`
-        // rather than `Transport.Ethernet`. Documented in the README.
+        // Wired Ethernet is `nw_interface_type_wired` in Apple's headers (and
+        // the K/N cinterop binding) — there is no `…_wired_ethernet` constant.
         return mapApplePath(
             satisfied = satisfied,
             wifi = nw_path_uses_interface_type(path, nw_interface_type_wifi),
-            ethernet = false,
+            ethernet = nw_path_uses_interface_type(path, nw_interface_type_wired),
             cellular = nw_path_uses_interface_type(path, nw_interface_type_cellular),
             other = nw_path_uses_interface_type(path, nw_interface_type_other),
             expensive = nw_path_is_expensive(path),

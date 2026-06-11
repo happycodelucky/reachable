@@ -90,10 +90,6 @@ to Maven Central and tagged on GitHub. Pin to a tag, never to
 
 ### Known limitations
 
-- Wired Ethernet on macOS surfaces as `Transport.Other`.
-  Kotlin/Native's `platform.Network` cinterop doesn't currently expose
-  `nw_interface_type_wired_ethernet`. See
-  [Concepts → Validated vs available](concepts/validated-vs-available.md).
 - VPN-over-Wi-Fi resolves to `Transport.Wifi` (the underlying physical
   transport). No separate `VPN` value.
 - No captive-portal detection callback. Apple and Android both handle

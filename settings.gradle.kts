@@ -12,6 +12,10 @@
 @file:Suppress("UnstableApiUsage")
 
 pluginManagement {
+    // Convention plugins (`reachable.kmp-library`, `reachable.publish`) live
+    // in the build-logic included build; versions still come from
+    // gradle/libs.versions.toml, which build-logic shares.
+    includeBuild("build-logic")
     repositories {
         google {
             content {
