@@ -6,38 +6,28 @@
  * set, Android library block, compiler options, SKIE settings — comes from
  * the `reachable.kmp-library` convention plugin; Maven Central publishing
  * comes from `reachable.publish` (both in /build-logic). This script keeps
- * only what is unique to this module: dependencies, the XCFramework
- * aggregator for the sample apps' local SPM path, and POM name/description.
+ * only what is unique to this module: dependencies, the KMMBridge SPM
+ * distribution config, and POM name/description.
  */
-
-import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 plugins {
     id("reachable.kmp-library")
     id("reachable.publish")
+    // KMMBridge (CLAUDE.md §9): aggregates the per-target frameworks the
+    // convention plugin declared into `Reachable.xcframework`
+    // (build/XCFrameworks/{debug,release}/), publishes the release zip as a
+    // GitHub Release asset, and regenerates the root /Package.swift. The
+    // `.github` plugin variant is a superset of the core plugin in 1.2.x —
+    // applying both produces a duplicate-extension error, so only this one.
+    //
+    // Do NOT redeclare `XCFramework("Reachable")` in the kotlin { } block:
+    // KMMBridge auto-creates the aggregator from the framework binaries at
+    // config time (it provides `assembleReachable{Debug,Release}XCFramework`),
+    // and a second declaration collides on those task names.
+    alias(libs.plugins.kmmbridge.github)
 }
 
 kotlin {
-    // XCFramework aggregator over the per-target frameworks the convention
-    // plugin declared. Bundles all three slices (iosArm64 device,
-    // iosSimulatorArm64, macosArm64) into a single `Reachable.xcframework`
-    // at `build/XCFrameworks/{debug,release}/`. The sample apps under
-    // /iOSApp and /macOSApp consume that via the root `Package.swift` and
-    // `.binaryTarget(path: …)` — see iOSApp/README.md.
-    //
-    // Maven Central distribution doesn't use the XCFramework — it publishes
-    // the per-target klibs and `kotlinMultiplatform` metadata; KMP consumers
-    // resolve those automatically. The aggregator exists purely for the
-    // local-dev path that the sample apps depend on.
-    val xcf = XCFramework("Reachable")
-    targets.withType<KotlinNativeTarget>().configureEach {
-        binaries.withType<Framework>().configureEach {
-            xcf.add(this)
-        }
-    }
-
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
@@ -87,6 +77,57 @@ skie {
         // for both debug and release XCFramework builds. `:reachable-testing`
         // doesn't need this — it isn't shipped as an XCFramework.
         produceDistributableFramework()
+    }
+}
+
+// --- KMMBridge: XCFramework → GitHub Release asset → SPM (CLAUDE.md §9) ------
+//
+// Two distribution channels run from this module, and they don't overlap:
+//
+//   1. Maven Central (`reachable.publish` convention plugin) — Android AAR,
+//      `kotlinMultiplatform` metadata, and per-target klibs. KMP consumers
+//      resolve these from `commonMain`; no XCFramework involved.
+//   2. GitHub Releases (this block) — the SKIE-enhanced `Reachable.xcframework`
+//      zip for pure-Swift consumers, referenced from the root /Package.swift
+//      by URL + checksum so `swift package resolve` needs no local Gradle
+//      build and no authentication.
+//
+// GitHub *Releases*, not GitHub *Packages*: Packages requires a PAT even to
+// download from public repos (every SPM consumer would need a ~/.netrc),
+// and Maven Central can't host the zip either — KMMBridge has no Central
+// Portal artifact manager, and Central's staging + sync delay would leave
+// the freshly-pushed tag referencing a URL that doesn't resolve yet.
+// Release assets are public, immediate, and checksum-pinned by SPM.
+//
+// `gitHubReleaseArtifacts` uploads `Reachable.xcframework.zip` to the GitHub
+// Release tagged `v${project.version}`, creating the release if it doesn't
+// exist. (`releasString` [sic] is KMMBridge 1.2.x's parameter name; without
+// it the release tag would be the bare version, breaking the repo's `vX.Y.Z`
+// tag convention.) Publishing is CI-only: the `kmmBridgePublish` umbrella
+// task is only registered when `-PENABLE_PUBLISHING=true` is passed, and the
+// upload reads the `GITHUB_REPO` / `GITHUB_PUBLISH_TOKEN` Gradle properties —
+// .github/workflows/release.yml supplies all three. Local builds skip the
+// publish wiring entirely; the `spmDevBuild` task (always registered) is the
+// local-dev entry point — see mise task `spm:dev`.
+gitHubReleaseArtifacts(releasString = "v${project.version}")
+
+kmmbridge {
+    // The XCFramework's Swift module name. Must match the `baseName` the
+    // convention plugin sets on each framework binary, or the generated
+    // Package.swift references a binary that doesn't exist.
+    frameworkName.set("Reachable")
+
+    // `swiftToolVersion = "6.0"` because the platform constants `.iOS(.v18)`
+    // and `.macOS(.v15)` need PackageDescription 6.0; KMMBridge defaults to
+    // 5.3, which can't compile them.
+    //
+    // Platform floors match `gradle/libs.versions.toml`
+    // (ios-deployment-target = 18.0, macos-deployment-target = 15.0). They're
+    // spelled "18" / "15" here because KMMBridge emits `.iOS(.v$value)`
+    // verbatim — "18.0" would produce the non-existent constant `.v18.0`.
+    spm(swiftToolVersion = "6.0") {
+        iOS { v("18") }
+        macOS { v("15") }
     }
 }
 

@@ -298,26 +298,32 @@ The same rule applies to `Pair<A, B>` / `Triple<…>` at the public boundary —
 
 ---
 
-## 9. iOS distribution — KMMBridge → Maven → SPM
+## 9. Apple distribution — KMMBridge → GitHub Releases → SPM
 
-We use **Touchlab's KMMBridge** to publish the iOS framework. **CocoaPods is forbidden.** Do not add `cocoapods { ... }` blocks.
+We use **Touchlab's KMMBridge** to publish the Apple framework. **CocoaPods is forbidden.** Do not add `cocoapods { ... }` blocks.
 
-**Pipeline:**
+Two channels, no overlap:
 
-1. Gradle builds an `XCFramework` with `iosArm64` + `iosSimulatorArm64` slices. No x86 simulator. SKIE-enhanced.
-2. KMMBridge zips the `XCFramework` and **publishes the zip as a Maven artifact** to our Maven repository.
-3. KMMBridge generates a `Package.swift` referencing the Maven-hosted zip by URL + checksum, and pushes that `Package.swift` to a dedicated **SPM Git repository** (tagged with the version).
-4. The iOS app's `Package.swift` depends on the SPM repo, pinned to a version tag.
+- **Maven Central** (vanniktech `gradle-maven-publish-plugin`) — Android AAR, `kotlinMultiplatform` metadata, per-target klibs. For Gradle/KMP consumers. No XCFramework involved.
+- **GitHub Releases** (KMMBridge) — the SKIE-enhanced `XCFramework` zip for pure-Swift SPM consumers.
+
+**SPM pipeline (release workflow, real publishes only):**
+
+1. Gradle builds an `XCFramework` with `iosArm64` + `iosSimulatorArm64` + `macosArm64` slices. No x86. SKIE-enhanced.
+2. KMMBridge zips the `XCFramework` and **uploads it as a GitHub Release asset** on the `vX.Y.Z` release it creates. GitHub *Releases*, not GitHub *Packages* — Packages requires a PAT even to download from public repos; Release assets are public and unauthenticated.
+3. KMMBridge regenerates the root `Package.swift` referencing the asset by URL + sha256 checksum. The workflow rewrites KMMBridge's API asset URL to the public `releases/download/…` form (same bytes, no anonymous-API quota), commits `Package.swift` to `main`, and force-moves the version tag onto that commit so the tagged manifest matches the uploaded binary.
+4. Swift consumers add this repo's URL as an SPM dependency pinned to a version tag; the tagged `Package.swift` hands them the prebuilt binary.
 
 **Rules:**
 
-- Maven coordinates and the SPM repo URL are configured in `gradle/kmmbridge.properties`.
-- Versioning is automated by KMMBridge (timestamp- or git-tag-based, configured per branch).
-- iOS engineers never open a Gradle file. They `swift package update` and consume tagged versions.
-- Don't vendor `XCFramework` zips into the iOS repo. Everything flows through Maven + SPM.
-- `Package.swift` is generated. Don't hand-edit.
+- KMMBridge config lives in the `kmmbridge { }` block in `reachable/build.gradle.kts`; the version pin lives in `gradle/libs.versions.toml` like every other dependency.
+- Versioning: the release workflow computes the version and passes `-Pversion=X.Y.Z`; KMMBridge tags `v${version}`. KMMBridge's own timestamp versioning is not used.
+- Publishing is CI-only: the `kmmBridgePublish` task only exists when `-PENABLE_PUBLISHING=true` is passed (the release workflow does).
+- Swift engineers never open a Gradle file. They `swift package update` and consume tagged versions.
+- Don't vendor `XCFramework` zips into the repo. Everything flows through GitHub Release assets + the committed `Package.swift`.
+- `Package.swift` is generated (`kmmBridgePublish` writes the released form, `spmDevBuild` the local-dev form). Don't hand-edit it, and never commit the local-dev form.
 
-**Local development override:** the iOS app supports a local SPM path pointing at the Gradle build output. Run `./gradlew :shared:assembleXCFramework`, then Xcode picks up changes without a publish step. The path override is documented in `iOSApp/README.md`.
+**Local development override:** the sample apps consume the root `Package.swift` as a local package. Run `./gradlew :reachable:spmDevBuild` (`mise run spm:dev`) to rebuild the debug `XCFramework` and flip `Package.swift` to a local path; `mise run spm:restore` restores the committed version. Documented in `iOSApp/README.md`.
 
 ---
 

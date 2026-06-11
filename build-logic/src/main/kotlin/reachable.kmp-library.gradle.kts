@@ -14,7 +14,8 @@
  *   reachable-testing  → framework "ReachableTesting", namespace com.happycodelucky.reachable.testing
  *
  * Module build scripts keep only what genuinely differs: dependencies,
- * the XCFramework aggregator (`:reachable` only), and POM name/description.
+ * the KMMBridge SPM distribution config (`:reachable` only), and POM
+ * name/description.
  */
 
 import org.gradle.api.artifacts.VersionCatalogsExtension
@@ -58,8 +59,9 @@ kotlin {
     }
 
     // --- Apple targets (CLAUDE.md §1) ---------------------------------------
-    // Static framework binaries with a stable bundle id. `:reachable` layers
-    // its XCFramework aggregator over these in its own build script.
+    // Static framework binaries with a stable bundle id. In `:reachable`,
+    // KMMBridge aggregates these into `Reachable.xcframework` at config time
+    // (no explicit XCFramework declaration — see reachable/build.gradle.kts).
     listOf(iosArm64(), iosSimulatorArm64(), macosArm64()).forEach { target ->
         target.binaries.framework {
             baseName = frameworkBaseName

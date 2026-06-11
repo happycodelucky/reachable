@@ -104,16 +104,22 @@ depends = ["build"]
 # --- iteration helpers -----------------------------------------------------
 
 [tasks."spm:dev"]
-description = "Rebuild the debug Reachable.xcframework that /Package.swift references."
-# The root /Package.swift declares a `.binaryTarget(path: …)` pointing at
-# `reachable/build/XCFrameworks/debug/Reachable.xcframework`. The sample
-# apps consume that path. Rebuilding the debug XCFramework picks up any
-# Kotlin edits without needing Gradle inside Xcode.
+description = "Rebuild the debug Reachable.xcframework and point /Package.swift at it (local dev mode)."
+# KMMBridge's `spmDevBuild` builds the debug XCFramework and REWRITES the
+# root /Package.swift to a `.binaryTarget(path: …)` pointing at
+# `reachable/build/XCFrameworks/debug/Reachable.xcframework`, so the sample
+# apps pick up local Kotlin edits without Gradle inside Xcode.
 #
-# Previously a KMMBridge `spmDevBuild` task did this and also regenerated
-# Package.swift; with KMMBridge removed, Package.swift is a static file
-# committed to the repo and only the XCFramework build is needed.
-run = "./gradlew :reachable:assembleReachableDebugXCFramework"
+# After the first tagged release, the committed Package.swift is the
+# *released* form — a remote `.binaryTarget(url:checksum:)` against the
+# GitHub Release asset, written by the release workflow (CLAUDE.md §9).
+# The local-dev rewrite is a working-tree-only convenience: do NOT commit
+# it. `mise run spm:restore` puts the committed version back.
+run = "./gradlew :reachable:spmDevBuild"
+
+[tasks."spm:restore"]
+description = "Restore the committed (released) /Package.swift after spm:dev rewrote it."
+run = "git restore Package.swift"
 
 [tasks."xcodeproj:ios"]
 description = "Generate iOSApp/iOSApp.xcodeproj from project.yml."

@@ -85,8 +85,9 @@ to Maven Central and tagged on GitHub. Pin to a tag, never to
   `Reachability.shared` for the duration of a test. Add as
   `testImplementation` / `commonTest` — see
   [Installation → Testing support](installation.md#testing-support).
-- A native Swift Package Manager artifact is **not** published in v0.1;
-  see [Installation](installation.md#apple-side-spm-roadmap).
+- A native Swift Package Manager artifact is **not** published in v0.1.
+  (Added in a later release — see
+  [Installation → Swift Package Manager](installation.md#swift-package-manager).)
 
 ### Known limitations
 

@@ -67,6 +67,12 @@ From Maven Central (Android, JVM, Kotlin Multiplatform):
 implementation("com.happycodelucky.reachable:reachable:{{ version }}")
 ```
 
-Apple consumers come in via Kotlin Multiplatform's iOS / macOS klibs
-published alongside the Android AAR. A native Swift Package Manager
-distribution is planned for v0.2. See [Installation](installation.md).
+Kotlin Multiplatform projects get the iOS / macOS klibs published
+alongside the Android AAR. Pure-Swift apps add the repo as a Swift
+package instead — a prebuilt XCFramework, no Kotlin toolchain:
+
+```swift
+.package(url: "https://github.com/happycodelucky/reachable.git", from: "{{ version }}")
+```
+
+See [Installation](installation.md) for both channels.
