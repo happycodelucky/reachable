@@ -65,6 +65,17 @@ with no construction or Context plumbing required.
     let reachability: any Reachability = Reachability.shared
     ```
 
+=== "JVM"
+
+    ```kotlin
+    // Desktop or server — no setup needed.
+    val reachability: Reachability = Reachability.shared
+    ```
+
+    On first access, starts polling the interface table eagerly.
+    Reachability on the JVM is best-effort — see
+    [Platforms → JVM](platforms/jvm.md) for the exact semantics.
+
 ### Explicit-lifecycle alternative
 
 For tests or any code that needs a fresh observer with explicit teardown,
@@ -90,6 +101,14 @@ use the platform factories instead:
 
     ```swift
     let reachability: any Reachability = Reachability()
+    ```
+
+=== "JVM"
+
+    ```kotlin
+    val reachability: Reachability = Reachability(pollInterval = 10.seconds)
+    // ...
+    reachability.close()
     ```
 
 Calling `close()` on `Reachability.shared` is intentionally a no-op — the

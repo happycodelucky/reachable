@@ -39,7 +39,7 @@ return the same instance.
 ### Close semantics
 
 Calling `close()` on `Reachability.shared` is an intentional **no-op**.
-The singleton's lifetime is the process; neither platform has a usable
+The singleton's lifetime is the process; no platform has a usable
 "natural deinit" path for a long-lived singleton:
 
 - On Android, `ConnectivityManager.registerNetworkCallback` causes the OS
@@ -50,6 +50,8 @@ The singleton's lifetime is the process; neither platform has a usable
 - On Apple, `nw_path_monitor_set_update_handler` retains the update
   handler, which captures the instance. ARC won't drop it until
   `nw_path_monitor_cancel`. Same kernel-reaps-at-exit story.
+- On the JVM, the running poll-loop coroutine roots the instance until
+  `close()` cancels it. The loop ends with the process.
 
 A misplaced `use { }` block, an `AutoCloseable`-aware DI container, or a
 test fixture that closes everything in `@AfterEach` must not accidentally
@@ -71,6 +73,11 @@ val reachability: Reachability = Reachability(applicationContext)
 let reachability: any Reachability = Reachability()
 ```
 
+```kotlin
+// JVM — optional poll cadence, default 5 seconds
+val reachability: Reachability = Reachability(pollInterval = 10.seconds)
+```
+
 ### When to construct
 
 | Where you are        | Where to construct                                                                                                   |
@@ -78,24 +85,27 @@ let reachability: any Reachability = Reachability()
 | Android              | `Application.onCreate()` — bind to the application context. Or just use `Reachability.shared`.                      |
 | iOS                  | App `init` (the `@main` `App` struct) or your composition root. Or just use `Reachability.shared`.                  |
 | macOS                | Same as iOS — both Apple platforms share `appleMain`.                                                                |
+| JVM                  | Your composition root (desktop) or service bootstrap (server). Or just use `Reachability.shared`.                   |
 | Test (`runTest`)     | Per-test, in a `try-with-resources`-style block. Don't share across tests (use the factory, not `Reachability.shared`). |
 
 The Apple factory creates a per-instance serial dispatch queue and starts
 an `nw_path_monitor`. The Android factory grabs `applicationContext`'s
-`ConnectivityManager` and registers a `NetworkCallback`. Both are cheap
-(microseconds) but each instance is a small allocation plus a platform
-observer registration.
+`ConnectivityManager` and registers a `NetworkCallback`. The JVM factory
+launches a coroutine that re-reads the interface table at the poll
+cadence. All are cheap (microseconds) but each instance is a small
+allocation plus a platform observer registration or poll loop.
 
 ### When to close
 
 `close()` cancels the platform observer (`nw_path_monitor_cancel` on Apple,
-`unregisterNetworkCallback` on Android) and cancels the internal coroutine
-scope.
+`unregisterNetworkCallback` on Android, the poll loop on the JVM) and
+cancels the internal coroutine scope.
 
 | Where you are     | Where to close                                                                                  |
 |-------------------|-------------------------------------------------------------------------------------------------|
 | Android           | `Application.onTerminate()`. The OS rarely calls it; in practice the process dies first.        |
 | iOS / macOS       | `deinit` on the owning view-model or composition root.                                          |
+| JVM               | App / service shutdown hook, or wherever the owning scope tears down.                           |
 | Test              | At the end of the test. `runTest` and Turbine leak the scope otherwise.                         |
 
 `close()` is idempotent and synchronous; multiple calls are no-ops. After
@@ -137,6 +147,19 @@ startup pass (before `Application.onCreate`). Collectors started before
 that transition see `Unknown` first, then the live value. The transition
 happens early enough that in practice the `Unknown` window is
 sub-millisecond by the time any UI is drawn.
+
+### JVM
+
+The poll loop runs on the instance's coroutine scope
+(`Dispatchers.Default`); each tick is a single `MutableStateFlow.value`
+write, which is concurrency-safe. Collectors observe on whatever
+dispatcher they collect on.
+
+The first poll runs immediately at construction, so the first real
+emission lands as soon as the dispatcher schedules it — `status.value`
+returns `ReachabilityStatus.Unknown` only briefly. *Changes* after that
+surface within one poll tick (default 5 seconds), not within
+milliseconds.
 
 ## Multiple collectors
 
@@ -180,6 +203,8 @@ A construction allocates:
   ~kB).
 - Android: one `NetworkCallback` (~kB) plus a binder transaction to register
   it.
+- JVM: one coroutine on the shared default dispatcher; each poll tick is a
+  read-only interface-table syscall, no network traffic.
 
 A `close()` releases both. The `SupervisorJob` cancels any in-flight
 collectors. The `MutableStateFlow` is GC-eligible after collectors complete.

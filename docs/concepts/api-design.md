@@ -39,6 +39,9 @@ public fun Reachability(): Reachability
 
 // androidMain
 public fun Reachability(context: Context): Reachability
+
+// jvmMain — desktop / server
+public fun Reachability(pollInterval: Duration = 5.seconds): Reachability
 ```
 
 Everything else — platform observers, the shared base class, the mapping
@@ -106,7 +109,8 @@ distinction between "expensive" and "constrained" is not surfaced in the
 public API because no consumer use case required it beyond what
 `transport == Transport.Cellular` already conveys. On Android,
 `NET_CAPABILITY_NOT_METERED` and `NET_CAPABILITY_TEMPORARILY_NOT_METERED`
-drive the flag.
+drive the flag. The JVM has no metering signal, so the flag is always
+`false` there.
 
 ## Singleton vs explicit lifecycle
 
@@ -116,7 +120,7 @@ ordering bugs that arise when a module tries to read reachability before the
 entrypoint has had a chance to run the factory.
 
 ```kotlin
-// Android, iOS, macOS — one call, callable from anywhere.
+// Android, iOS, macOS, JVM — one call, callable from anywhere.
 val reachability: Reachability = Reachability.shared
 ```
 
@@ -155,7 +159,8 @@ try {
 
 ## Asymmetric factories
 
-`Reachability()` on Apple, `Reachability(context)` on Android. There's no
+`Reachability()` on Apple, `Reachability(context)` on Android,
+`Reachability(pollInterval)` on the JVM. There's no
 `expect class ReachabilityFactory` to paper over the asymmetry — wrapping
 it that way only moves the `Context` requirement one layer down.
 

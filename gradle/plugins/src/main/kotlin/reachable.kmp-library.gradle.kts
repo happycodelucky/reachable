@@ -3,9 +3,10 @@
  * libraries (`:reachable`, `:reachable-testing`).
  *
  * Owns everything the two modules previously duplicated (CLAUDE.md §1, §2,
- * §4): the ARM-only target matrix, the apple intermediate source set, the
- * Android library block, compiler options, JVM target wiring, and the
- * SKIE settings that must match across modules. Per-module identity
+ * §4): the target matrix (ARM-only natives, Android, desktop/server JVM),
+ * the apple intermediate source set, the Android library block, compiler
+ * options, JVM toolchain wiring, and the SKIE settings that must match
+ * across modules. Per-module identity
  * (framework base name, bundle id, Android namespace) is derived from the
  * project name so adding a module means applying this plugin and nothing
  * else:
@@ -69,6 +70,12 @@ kotlin {
             binaryOption("bundleId", moduleNamespace)
         }
     }
+
+    // --- JVM target (CLAUDE.md §1) -------------------------------------------
+    // Desktop / server JVM. Bytecode is architecture-neutral, so the ARM-only
+    // rule constrains the native slices above, not this jar. The
+    // `targets.withType<KotlinJvmTarget>` block below pins it to JVM 21.
+    jvm()
 
     // --- Android target (CLAUDE.md §1, §4) ----------------------------------
     // The new com.android.kotlin.multiplatform.library plugin's android {} block.
