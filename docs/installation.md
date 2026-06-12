@@ -4,7 +4,7 @@ Reachable ships through two channels:
 
 | Channel | For | Artifacts |
 |---|---|---|
-| **Maven Central** | Gradle — Android, JVM, Kotlin Multiplatform | Android AAR, `kotlinMultiplatform` metadata, per-target klibs (`iosArm64`, `iosSimulatorArm64`, `macosArm64`) |
+| **Maven Central** | Gradle — Android, JVM, Kotlin Multiplatform | Android AAR, JVM jar, `kotlinMultiplatform` metadata, per-target klibs (`iosArm64`, `iosSimulatorArm64`, `macosArm64`) |
 | **Swift Package Manager** | Pure-Swift iOS / macOS apps, no Kotlin toolchain | Prebuilt `Reachable.xcframework`, hosted as a GitHub Release asset |
 
 Kotlin Multiplatform projects should use the Maven artifact from
@@ -20,6 +20,7 @@ Swift package is for apps with no Kotlin in them at all — see
 | iOS / iPadOS | iOS 18     |
 | macOS        | macOS 15   |
 | Android      | API 30 (Android 11), `arm64-v8a` only |
+| JVM          | 21 (desktop / server, any OS) |
 | Kotlin       | 2.3.x (K2) |
 
 ## Gradle (Android, JVM, KMP)
@@ -31,6 +32,15 @@ block changes are needed.
 
     ```kotlin
     // app/build.gradle.kts
+    dependencies {
+        implementation("com.happycodelucky.reachable:reachable:{{ version }}")
+    }
+    ```
+
+=== "JVM module"
+
+    ```kotlin
+    // desktop-app/build.gradle.kts
     dependencies {
         implementation("com.happycodelucky.reachable:reachable:{{ version }}")
     }
@@ -51,7 +61,9 @@ block changes are needed.
 
 `android.permission.ACCESS_NETWORK_STATE` is declared in the library's own
 manifest and merged in at build time. It's a normal-protection permission,
-so no runtime grant is needed.
+so no runtime grant is needed. The JVM target needs no permissions —
+reachability is read from the local interface table, with no network
+traffic.
 
 ## Testing support
 

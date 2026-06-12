@@ -7,8 +7,8 @@ hide:
 
 Reachable is a Kotlin Multiplatform library that tells you whether the
 device is on the internet, and lets you observe changes as they happen.
-It targets iOS, iPadOS, macOS, and Android, and presents the same API to
-Kotlin and Swift consumers.
+It targets iOS, iPadOS, macOS, Android, and the JVM (desktop / server),
+and presents the same API to Kotlin and Swift consumers.
 
 ```kotlin
 // Singleton — no Context plumbing, callable from anywhere.
@@ -42,6 +42,8 @@ factories `Reachability(context)` / `Reachability()` instead.
 - iOS 18, iPadOS 18, macOS 15. ARM only (`iosArm64`, `iosSimulatorArm64`,
   `macosArm64`).
 - Android 11 (API 30). `arm64-v8a` only.
+- JVM 21 (desktop / server). Architecture-neutral bytecode — any OS with a
+  JVM 21 runtime.
 
 ## Implementation
 
@@ -54,6 +56,11 @@ distinguishes a working network from a captive portal.
 Apple's `nw_path_is_expensive` and `nw_path_is_constrained` (cellular,
 hotspot, and Low Data Mode) both fold into `isDataMetered`. Android uses
 `NET_CAPABILITY_NOT_METERED` for the same signal.
+
+The JVM has neither a connectivity callback nor a validation probe, so
+the desktop / server backend polls the interface table and reports
+best-effort reachability — see [Platforms → JVM](platforms/jvm.md) for
+the exact semantics.
 
 The Swift surface is idiomatic: Kotlin enums arrive as exhaustive Swift
 enums, `StateFlow<T>` is consumed as an `AsyncSequence<T>`, and

@@ -15,7 +15,8 @@ package com.happycodelucky.reachable
  *
  * Available on iOS, iPadOS, and macOS (the `appleMain` source set covers all
  * Apple targets in this module). Android consumers use the `Reachability`
- * factory in `androidMain`, which takes a `Context`.
+ * factory in `androidMain`, which takes a `Context`; JVM consumers use the
+ * `Reachability(pollInterval:)` factory in `jvmMain`.
  */
 @Suppress("FunctionName")
 public fun Reachability(): Reachability = AppleReachability()

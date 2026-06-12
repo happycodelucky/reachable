@@ -47,7 +47,7 @@ swiftformat = "0.61.1"                      # apps/ios, apps/macos Swift formatt
 # samples are demo scaffolding, excluded from lint and CI by policy (see
 # the subprojects block in build.gradle.kts).
 [tasks.check]
-description = "Run ktlint + detekt + every unit test in both published modules (iOS simulator, macOS, Android host)."
+description = "Run ktlint + detekt + every unit test in both published modules (iOS simulator, macOS, Android host, JVM)."
 run = "./gradlew :reachable:check :reachable-testing:check"
 
 [tasks.test]
@@ -96,6 +96,10 @@ run = "./gradlew :reachable:linkDebugFrameworkMacosArm64"
 [tasks."build:android"]
 description = "Assemble the Android AAR."
 run = "./gradlew :reachable:assemble"
+
+[tasks."build:jvm"]
+description = "Assemble the desktop/server JVM jar."
+run = "./gradlew :reachable:jvmJar"
 
 [tasks.xcframework]
 description = "Alias for `build` — produces the release Reachable.xcframework."

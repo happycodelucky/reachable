@@ -3,6 +3,7 @@
 ![iOS 18+](https://img.shields.io/badge/iOS-18%2B-blue.svg?style=for-the-badge&logo=apple)
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg?style=for-the-badge&logo=apple)
 ![Android 11+](https://img.shields.io/badge/Android-11%2B-3DDC84.svg?style=for-the-badge&logo=android&logoColor=white)
+![JVM 21+](https://img.shields.io/badge/JVM-21%2B-ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Kotlin 2.3](https://img.shields.io/badge/Kotlin-2.3-7F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white)
 [![CI](https://img.shields.io/github/actions/workflow/status/happycodelucky/reachable/ci.yml?style=for-the-badge&label=ci)](https://github.com/happycodelucky/reachable/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/happycodelucky/reachable/docs.yml?style=for-the-badge&label=docs)](https://github.com/happycodelucky/reachable/actions/workflows/docs.yml)
@@ -18,6 +19,9 @@ internet and lets you observe changes as they happen, behind one API:
 - **Android 11+ (API 30)**: `ConnectivityManager.NetworkCallback`
   registered against `NET_CAPABILITY_INTERNET + NET_CAPABILITY_VALIDATED`,
   so captive portals correctly register as not reachable.
+- **JVM 21+ (desktop / server)**: polling over `java.net.NetworkInterface`.
+  Best-effort — the JDK has no validation probe, so captive portals are
+  not detected and transport is inferred from interface names.
 
 UI is out of scope — Reachable is the headless `:reachable` KMP module
 (CLAUDE.md §1). Each platform app consumes it natively.
@@ -30,10 +34,11 @@ observing immediately. The explicit-lifecycle factories
 (`Reachability(context)` / `Reachability()`) remain available for tests
 and any code that wants per-instance teardown.
 
-ARM-only targets: `iosArm64`, `iosSimulatorArm64`, `macosArm64`, Android
-`arm64-v8a`. SKIE bridges the Swift surface — enums become exhaustive
-Swift enums, `StateFlow<T>` becomes `AsyncSequence<T>`, `suspend fun`
-becomes `async throws`.
+Native targets are ARM-only: `iosArm64`, `iosSimulatorArm64`, `macosArm64`,
+Android `arm64-v8a`. A `jvm` target (architecture-neutral JVM 21 bytecode)
+covers desktop and server JVMs. SKIE bridges the Swift surface — enums
+become exhaustive Swift enums, `StateFlow<T>` becomes `AsyncSequence<T>`,
+`suspend fun` becomes `async throws`.
 
 ---
 
@@ -66,7 +71,8 @@ Highlights:
 
 Reachable publishes to Maven Central. From a Kotlin Multiplatform project,
 depend on `:reachable` from `commonMain` — KMP resolves the right per-target
-slice (Android AAR, `iosArm64`, `iosSimulatorArm64`, `macosArm64`) for you:
+slice (Android AAR, JVM jar, `iosArm64`, `iosSimulatorArm64`, `macosArm64`)
+for you:
 
 ```kotlin
 // shared/build.gradle.kts
@@ -79,7 +85,7 @@ kotlin {
 }
 ```
 
-Android-only consumers depend on the artifact directly:
+Android-only and JVM-only consumers depend on the artifact directly:
 
 ```kotlin
 // app/build.gradle.kts
@@ -133,6 +139,8 @@ For explicit-lifecycle needs (tests, per-feature observers):
 ```kotlin
 // Android
 val r: Reachability = Reachability(applicationContext)
+// JVM (desktop / server) — optional poll cadence, default 5 seconds
+val r: Reachability = Reachability(pollInterval = 10.seconds)
 // Apple
 val r: any Reachability = Reachability()
 r.close() // honours close() normally
@@ -239,16 +247,49 @@ normal-protection permission, so no runtime grant is needed.
 
 ---
 
+## Launch sequence — JVM (desktop / server)
+
+No Context, no initializer — `Reachability.shared` starts the interface
+poll loop on first access, exactly like Apple:
+
+```kotlin
+import com.happycodelucky.reachable.Reachability
+
+val reachability = Reachability.shared
+reachability.status.collect { status ->
+    // re-rendered every time an interface comes up or goes down
+}
+```
+
+For explicit lifecycle (or a custom poll cadence), use the factory:
+
+```kotlin
+import kotlin.time.Duration.Companion.seconds
+
+val reachability = Reachability(pollInterval = 10.seconds) // default 5.seconds
+// ...
+reachability.close() // stops the poll loop
+```
+
+Know the trade-offs on this platform: the JDK offers no validation probe,
+so `isReachable` means "a non-loopback interface is up with a routable
+address" — a captive portal still reads as reachable. Changes surface
+within one poll tick rather than milliseconds, `isDataMetered` is always
+`false`, and transport classification is inferred from interface names
+(`Transport.Other` when ambiguous — e.g. macOS's `en0`).
+
+---
+
 ## What each platform actually surfaces
 
-|                                  | iOS / iPadOS                       | macOS                              | Android                                 |
-| -------------------------------- | ---------------------------------- | ---------------------------------- | --------------------------------------- |
-| Reachability backend             | `nw_path_monitor` (satisfied)      | `nw_path_monitor` (satisfied)      | `NetworkCallback` (`INTERNET + VALIDATED`) |
-| Captive-portal handling          | OS-internal probe                  | OS-internal probe                  | `NET_CAPABILITY_VALIDATED`              |
-| `Transport.Wifi` / `Cellular`    | yes                                | yes                                | yes                                     |
-| `Transport.Ethernet`             | yes (USB-C / dock adapters)        | yes (`nw_interface_type_wired`)    | yes (`TRANSPORT_ETHERNET`)              |
-| `isDataMetered = true`           | `nw_path_is_expensive \|\| nw_path_is_constrained` | `nw_path_is_expensive \|\| nw_path_is_constrained` | `!(NET_CAPABILITY_NOT_METERED \|\| TEMPORARILY_NOT_METERED)` |
-| Status seeded synchronously      | no (first emission within tens of ms) | no                                 | **yes** (from `activeNetwork`)          |
+|                                  | iOS / iPadOS                       | macOS                              | Android                                 | JVM (desktop / server)                  |
+| -------------------------------- | ---------------------------------- | ---------------------------------- | --------------------------------------- | --------------------------------------- |
+| Reachability backend             | `nw_path_monitor` (satisfied)      | `nw_path_monitor` (satisfied)      | `NetworkCallback` (`INTERNET + VALIDATED`) | `NetworkInterface` polling (best-effort) |
+| Captive-portal handling          | OS-internal probe                  | OS-internal probe                  | `NET_CAPABILITY_VALIDATED`              | **not detected**                        |
+| `Transport.Wifi` / `Cellular`    | yes                                | yes                                | yes                                     | best-effort (interface names)           |
+| `Transport.Ethernet`             | yes (USB-C / dock adapters)        | yes (`nw_interface_type_wired`)    | yes (`TRANSPORT_ETHERNET`)              | best-effort (`Other` when ambiguous)    |
+| `isDataMetered = true`           | `nw_path_is_expensive \|\| nw_path_is_constrained` | `nw_path_is_expensive \|\| nw_path_is_constrained` | `!(NET_CAPABILITY_NOT_METERED \|\| TEMPORARILY_NOT_METERED)` | never (no JDK signal)                   |
+| Status seeded synchronously      | no (first emission within tens of ms) | no                                 | **yes** (from `activeNetwork`)          | no (first poll, then every interval)    |
 
 Apple's Low Data Mode signal (`nw_path_is_constrained`) folds into
 `isDataMetered` alongside `nw_path_is_expensive`; there's no separate
@@ -333,7 +374,7 @@ mise install      # provision every tool at the pinned version
 Then the task surface:
 
 ```bash
-mise run check          # ktlint + all unit tests (iOS sim, macOS, Android host)
+mise run check          # ktlint + all unit tests (iOS sim, macOS, Android host, JVM)
 mise run build:ios      # iOS device + simulator debug frameworks
 mise run build:macos    # macOS desktop debug framework
 mise run build          # release Reachable.xcframework (sample-app local SPM)

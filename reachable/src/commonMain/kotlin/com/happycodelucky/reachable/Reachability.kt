@@ -45,9 +45,14 @@ public annotation class TestingOnly
  *
  * Maps from Apple's `nw_interface_type_*` enum and Android's
  * `NetworkCapabilities.TRANSPORT_*` flags. A path can use multiple interfaces
- * simultaneously (VPN over Wi-Fi, for example); both platforms collapse to
+ * simultaneously (VPN over Wi-Fi, for example); all platforms collapse to
  * the highest-quality transport using the priority
  * `WIFI > ETHERNET > CELLULAR > OTHER`.
+ *
+ * On the JVM (desktop / server) the OS exposes no transport type, so the
+ * value is inferred from interface naming — best-effort. Interfaces the
+ * heuristic can't classify (notably macOS's `en0`, which may be Wi-Fi or
+ * wired) report [Other].
  *
  * [None] is reported when [ReachabilityStatus.isReachable] is `false`. A
  * usable path with an unrecognised interface type reports [Other].
@@ -81,6 +86,9 @@ public enum class Transport {
  * that has been *validated* (Android `NET_CAPABILITY_VALIDATED`) or is reported
  * as `nw_path_status_satisfied` (Apple). Bare "interface up" is **not**
  * sufficient — captive portals and DNS holes will set this to `false`.
+ * Exception: the JVM offers no validation probe, so on desktop / server JVMs
+ * this *is* best-effort interface-up detection (a non-loopback interface with
+ * a routable address) — captive portals cannot be detected there.
  * @property transport Which interface is carrying the active connection. See
  * [Transport].
  * @property isDataMetered `true` when the active path is reported as metered
@@ -89,6 +97,7 @@ public enum class Transport {
  * `nw_path_is_expensive(path) || nw_path_is_constrained(path)`, so the Low
  * Data Mode signal folds into this single bit. On Android it is the negation
  * of `NET_CAPABILITY_NOT_METERED || NET_CAPABILITY_TEMPORARILY_NOT_METERED`.
+ * The JVM has no metering signal; there it is always `false`.
  */
 public data class ReachabilityStatus(
     val isReachable: Boolean,
@@ -148,8 +157,9 @@ public data class ReachabilityStatus(
  * [companion object][Reachability.Companion.shared] for semantics.
  *
  * For explicit-lifecycle use (tests, per-feature observers), use the
- * platform factories: `Reachability()` in `appleMain` (no arguments) and
- * `Reachability(context:)` in `androidMain` (takes an Android `Context`).
+ * platform factories: `Reachability()` in `appleMain` (no arguments),
+ * `Reachability(context:)` in `androidMain` (takes an Android `Context`),
+ * and `Reachability(pollInterval:)` in `jvmMain` (optional poll cadence).
  * Call [close] when the owning scope tears down. [close] is idempotent.
  */
 public interface Reachability : AutoCloseable {
@@ -210,8 +220,9 @@ public interface Reachability : AutoCloseable {
 
     /**
      * Tear down the platform observer (Apple: `nw_path_monitor_cancel`;
-     * Android: `unregisterNetworkCallback`) and cancel the internal coroutine
-     * scope. Idempotent; subsequent calls are no-ops.
+     * Android: `unregisterNetworkCallback`; JVM: stop the interface poll
+     * loop) and cancel the internal coroutine scope. Idempotent; subsequent
+     * calls are no-ops.
      *
      * After [close], [status] continues to expose its last value but will
      * never emit again.
@@ -233,6 +244,12 @@ public interface Reachability : AutoCloseable {
          * eagerly. Subsequent accesses return the same instance. There is
          * no Context dependency on Apple — the monitor is self-contained.
          *
+         * **JVM (desktop / server)**: on first access, constructs an
+         * instance that polls the interface table at the default cadence
+         * and starts observing eagerly — self-contained, like Apple. See
+         * the `Reachability(pollInterval:)` factory in `jvmMain` for the
+         * best-effort semantics on this platform.
+         *
          * **Android**: on first access, returns an unattached instance
          * whose [status] is [ReachabilityStatus.Unknown]. The library's
          * bundled `androidx.startup` initializer attaches it to the
@@ -249,8 +266,8 @@ public interface Reachability : AutoCloseable {
          * coming online.
          *
          * Calling [close] on this instance is an intentional **no-op** —
-         * the singleton's lifetime is the process, and the OS reaps the
-         * platform observer at process exit on both platforms. Code that
+         * the singleton's lifetime is the process, and the platform
+         * observer ends with the process on every platform. Code that
          * needs explicit lifecycle should use the `Reachability(context)`
          * / `Reachability()` top-level factories instead, which return a
          * fresh observer per call and honour [close] normally.

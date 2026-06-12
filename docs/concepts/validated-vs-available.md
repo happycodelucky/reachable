@@ -67,6 +67,30 @@ The library does not add an HTTP probe on top of either platform. Both
 platforms already probe internally; layering another probe slows the first
 emission, drains battery, and produces two slightly disagreeing signals.
 
+### JVM
+
+The exception to everything above. The JVM has no OS-level validation
+probe to read, so on desktop / server JVMs `reachable` *is* the weaker
+"available" signal this page warns about:
+
+```kotlin
+// JVM semantics: at least one interface that is
+//   up && !loopback && has a routable (non-link-local) address
+// — no probe, no captive-portal detection.
+```
+
+The library deliberately does not ship its own probe endpoint either —
+a library phoning a hardcoded host every few seconds is a worse default
+than an honest, weaker signal. If your desktop app needs proof of a
+working path (a download manager, a sync engine), make the real request
+and treat its failure as the signal, exactly as the
+[captive-portal recipe](../recipes/captive-portal.md) recommends.
+
+On JVM the library does filter out the classic false positives it *can*
+see: loopbacks, link-local-only adapters (`169.254.x.x` after a failed
+DHCP), and host-only container/hypervisor bridges (`docker0`, `vmnet*`,
+…) that stay up with a private address while the machine is offline.
+
 ## Wired Ethernet on Apple
 
 Wired connections surface as `Transport.Ethernet` on Apple platforms via

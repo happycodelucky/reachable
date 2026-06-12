@@ -9,9 +9,9 @@
  * Why this layout (CLAUDE.md §4):
  *
  *  - The `expect` surface is one function. Apple's `actual` is one line
- *    (`AppleReachability()`); Android's is one line (`AndroidReachability()`).
- *    Both well under the §4 "refactor to interface if it grows past
- *    ~20 lines" threshold.
+ *    (`AppleReachability()`); Android's is one line (`AndroidReachability()`);
+ *    the JVM's is one line (`JvmReachability()`). All well under the §4
+ *    "refactor to interface if it grows past ~20 lines" threshold.
  *  - The singleton wrapping into [NonClosingReachability] happens here,
  *    once, in common code — neither platform `actual` needs to know about
  *    the decorator.
@@ -36,11 +36,12 @@ import kotlinx.atomicfu.atomic
 
 /**
  * Platform factory for the singleton's underlying instance. On Apple this
- * constructs an `AppleReachability` (begins observing eagerly). On Android
- * this constructs an `AndroidReachability` with no Context — the bundled
- * `ReachabilityInitializer` (or, for consumers who disable
- * `androidx.startup`'s `InitializationProvider`, no one) calls `attach`
- * later.
+ * constructs an `AppleReachability` (begins observing eagerly). On the JVM
+ * this constructs a `JvmReachability` at the default poll cadence (also
+ * eager). On Android this constructs an `AndroidReachability` with no
+ * Context — the bundled `ReachabilityInitializer` (or, for consumers who
+ * disable `androidx.startup`'s `InitializationProvider`, no one) calls
+ * `attach` later.
  */
 internal expect fun createSharedReachability(): Reachability
 

@@ -39,6 +39,15 @@ _No entries yet. Add one the next time something bites._
 ### D-003 — `expect`/`actual` cap ~20 lines, otherwise refactor to interface
 If an `actual` implementation grows past ~20 lines, refactor to a `commonMain` interface and inject platform implementations at the entrypoint. Keeps the `expect`/`actual` surface minimal and testable.
 
+### D-004 — JVM backend polls `NetworkInterface`; `isReachable` is best-effort, not validated
+The JDK has no connectivity callback and no validation probe (unlike Apple's `nw_path_monitor` / Android's `NET_CAPABILITY_VALIDATED`), so `JvmReachability` polls `java.net.NetworkInterface` on the base-class scope (default 5s) and maps via the pure `mapJvmInterfaces`. Consequences baked into the public KDoc + docs: captive portals are invisible, `isDataMetered` is always `false`, transport is name-inferred (`Transport.Other` when ambiguous, e.g. macOS `en0`). Host-only bridges (`docker0`, `vmnet*`, …) are filtered so a Docker-running laptop reads offline in airplane mode; VPN tunnels (`utun*`) count. No HTTP probe by design — a library phoning home by default is worse than an honest weak signal.
+
+### D-005 — Adding a KMP target touched zero common code
+Adding `jvm` needed only: `jvm()` in the convention plugin (the existing `targets.withType<KotlinJvmTarget>` JVM_21 block, written for Android, covered it), a one-line `createSharedReachability()` actual, and the platform impl. The `expect` seam being a single function (see D-003) is what made a third platform a pure addition.
+
+### D-004 — JVM backend polls `NetworkInterface`; reachability there is best-effort by design (2026-06-11)
+The JDK has no connectivity callback and no validation probe, so `JvmReachability` polls `java.net.NetworkInterface` (default 5 s), filters loopback / link-local / host-only bridges (`docker0` etc.), infers `Transport` from interface names (`Other` when ambiguous, e.g. macOS `en0`), and always reports `isDataMetered = false`. A built-in HTTP probe was rejected: a library phoning a hardcoded endpoint by default is worse than an honest weaker signal. See `Mapping.jvm.kt` and `docs/platforms/jvm.md`.
+
 ---
 
 ## NEVER DO (N)

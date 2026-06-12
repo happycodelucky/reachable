@@ -49,9 +49,9 @@ jobs:
           echo "Computed CI version: $VERSION"
 
       # `mise run check` runs ktlint + detekt + every unit test on every
-      # target (iosSimulatorArm64Test, macosArm64Test, testAndroidHostTest)
-      # in both published modules (:reachable, :reachable-testing). Sample
-      # apps are deliberately excluded — see mise.toml.
+      # target (iosSimulatorArm64Test, macosArm64Test, testAndroidHostTest,
+      # jvmTest) in both published modules (:reachable, :reachable-testing).
+      # Sample apps are deliberately excluded — see mise.toml.
       # `mise run build` assembles Reachable.xcframework — the artifact that
       # the sample apps under /apps/ios and /apps/macos consume via the root
       # Package.swift. Maven Central publishing is a separate workflow
