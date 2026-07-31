@@ -20,11 +20,17 @@ whenever you get stuck — we may have seen the issue before.
 
 Date format: `YYYY-MM-DD`. Always absolute, never relative ("last week").
 
+For build/toolchain work specifically, [`toolchain-audit.md`](toolchain-audit.md)
+is a repeatable audit procedure — the recurring ways build tooling silently
+stops working, each with a detection command, plus registry queries for checking
+versions without trusting search.
+
 ---
 
 ## Bugs we've hit (B)
 
-_No entries yet. Add one the next time something bites._
+### B-001 — Renovate's SKIE-bound Kotlin guard was silently dead (2026-07-30)
+`matchPackagePrefixes` was removed in Renovate **v38**, so the rule enforcing N-006 survived only via silent config migration. It also over-matched: `org.jetbrains.kotlin` prefix-matches `org.jetbrains.kotlinx`, so it was disabling coroutines/atomicfu updates too — and v38+ auto-migration to `org.jetbrains.kotlin{/,}**` preserves that. Fixed with an anchored regex (`/^org\.jetbrains\.kotlin([.:]|$)/`). Validate config against a **current** Renovate major; older validators still accept the removed key.
 
 ---
 
