@@ -62,6 +62,19 @@ run = "./gradlew :reachable:ktlintCheck :reachable:detekt :reachable-testing:ktl
 description = "ktlint auto-fix, both published modules."
 run = "./gradlew :reachable:ktlintFormat :reachable-testing:ktlintFormat"
 
+# --- public API / ABI ------------------------------------------------------
+# The committed dumps under <module>/api/ are the reference for the public
+# surface across every target. `checkKotlinAbi` already runs as part of `check`
+# (and therefore CI) — these are the explicit entry points.
+
+[tasks."api:check"]
+description = "Verify the public API/ABI matches the committed dump (also runs inside `check`)."
+run = "./gradlew :reachable:checkKotlinAbi :reachable-testing:checkKotlinAbi"
+
+[tasks."api:dump"]
+description = "Regenerate the committed public API/ABI dump after an INTENTIONAL public change. Review + commit the api/ diff."
+run = "./gradlew :reachable:updateKotlinAbi :reachable-testing:updateKotlinAbi"
+
 [tasks."lint:swift"]
 description = "Run swiftlint across the iOS and macOS sample apps."
 run = """

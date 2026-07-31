@@ -23,6 +23,7 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins {
@@ -122,6 +123,40 @@ kotlin {
             }
         }
     }
+
+    // --- Public-API / ABI validation ----------------------------------------
+    // Both modules here are PUBLISHED to Maven Central, and `:reachable` also
+    // ships as an XCFramework to SPM consumers. The committed dumps under
+    // <module>/api/ are the reference for the public surface across every
+    // target; `checkKotlinAbi` runs inside `check` (and therefore CI) and fails
+    // on any unintended change.
+    //
+    // This is the guard that catches what tests structurally cannot. A test
+    // exercises what it calls; it says nothing about a public declaration that
+    // was REMOVED or whose signature changed in a binary-incompatible but
+    // source-compatible way — adding a default parameter value, widening a
+    // return type, making a `val` a `var`, adding a `data class` constructor
+    // parameter. Those compile clean, keep the suite green, and surface as a
+    // consumer's NoSuchMethodError at runtime. Swift/SPM consumers get it worse:
+    // SKIE derives the Swift API from this klib ABI, and a consumer pinned to a
+    // tag has no Gradle, no deprecation warning, and no migration path.
+    //
+    // After an INTENTIONAL public-API change run `mise run api:dump` and commit
+    // the api/ diff alongside the code — review it like any other change. This
+    // is a detector, not a policy: it doesn't prevent breaking changes, it makes
+    // them deliberate and reviewable.
+    //
+    // When the host can't compile every target (a Linux runner can't build the
+    // Apple slices), the plugin infers those targets' ABI from the prior dump
+    // rather than dropping them, so the checked-in dump stays complete. The
+    // Apple-target ABI is verified on the macOS leg of CI, which can build them.
+    //
+    // As of Kotlin 2.4 the PRESENCE of this block is what enables validation;
+    // the old `enabled.set(true)` property was removed, and there is no longer
+    // an `enabled.set(false)` to opt a module out — exempting a module would
+    // mean not calling this block for it.
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation { }
 }
 
 skie {

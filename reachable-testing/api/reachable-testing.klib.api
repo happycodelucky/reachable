@@ -1,0 +1,24 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, macosArm64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.happycodelucky.reachable:reachable-testing>
+final class com.happycodelucky.reachable.testing/FakeReachability : com.happycodelucky.reachable.internal/StateFlowReachability { // com.happycodelucky.reachable.testing/FakeReachability|null[0]
+    constructor <init>(com.happycodelucky.reachable/ReachabilityStatus = ...) // com.happycodelucky.reachable.testing/FakeReachability.<init>|<init>(com.happycodelucky.reachable.ReachabilityStatus){}[0]
+
+    final val closeCallCount // com.happycodelucky.reachable.testing/FakeReachability.closeCallCount|{}closeCallCount[0]
+        final fun <get-closeCallCount>(): kotlin/Int // com.happycodelucky.reachable.testing/FakeReachability.closeCallCount.<get-closeCallCount>|<get-closeCallCount>(){}[0]
+    final val wasClosed // com.happycodelucky.reachable.testing/FakeReachability.wasClosed|{}wasClosed[0]
+        final fun <get-wasClosed>(): kotlin/Boolean // com.happycodelucky.reachable.testing/FakeReachability.wasClosed.<get-wasClosed>|<get-wasClosed>(){}[0]
+
+    final fun emit(com.happycodelucky.reachable/ReachabilityStatus) // com.happycodelucky.reachable.testing/FakeReachability.emit|emit(com.happycodelucky.reachable.ReachabilityStatus){}[0]
+    final fun reset() // com.happycodelucky.reachable.testing/FakeReachability.reset|reset(){}[0]
+    final fun setDataMetered(kotlin/Boolean) // com.happycodelucky.reachable.testing/FakeReachability.setDataMetered|setDataMetered(kotlin.Boolean){}[0]
+    final fun setReachable(kotlin/Boolean) // com.happycodelucky.reachable.testing/FakeReachability.setReachable|setReachable(kotlin.Boolean){}[0]
+    final fun setTransport(com.happycodelucky.reachable/Transport) // com.happycodelucky.reachable.testing/FakeReachability.setTransport|setTransport(com.happycodelucky.reachable.Transport){}[0]
+}
+
+final suspend fun <#A: kotlin/Any?> com.happycodelucky.reachable.testing/withFakeReachability(com.happycodelucky.reachable/ReachabilityStatus = ..., kotlin.coroutines/SuspendFunction1<com.happycodelucky.reachable.testing/FakeReachability, #A>): #A // com.happycodelucky.reachable.testing/withFakeReachability|withFakeReachability(com.happycodelucky.reachable.ReachabilityStatus;kotlin.coroutines.SuspendFunction1<com.happycodelucky.reachable.testing.FakeReachability,0:0>){0§<kotlin.Any?>}[0]

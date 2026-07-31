@@ -1,0 +1,101 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, macosArm64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.happycodelucky.reachable:reachable>
+open annotation class com.happycodelucky.reachable/TestingOnly : kotlin/Annotation { // com.happycodelucky.reachable/TestingOnly|null[0]
+    constructor <init>() // com.happycodelucky.reachable/TestingOnly.<init>|<init>(){}[0]
+}
+
+final enum class com.happycodelucky.reachable/Transport : kotlin/Enum<com.happycodelucky.reachable/Transport> { // com.happycodelucky.reachable/Transport|null[0]
+    enum entry Cellular // com.happycodelucky.reachable/Transport.Cellular|null[0]
+    enum entry Ethernet // com.happycodelucky.reachable/Transport.Ethernet|null[0]
+    enum entry None // com.happycodelucky.reachable/Transport.None|null[0]
+    enum entry Other // com.happycodelucky.reachable/Transport.Other|null[0]
+    enum entry Wifi // com.happycodelucky.reachable/Transport.Wifi|null[0]
+
+    final val entries // com.happycodelucky.reachable/Transport.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.happycodelucky.reachable/Transport> // com.happycodelucky.reachable/Transport.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.happycodelucky.reachable/Transport // com.happycodelucky.reachable/Transport.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.happycodelucky.reachable/Transport> // com.happycodelucky.reachable/Transport.values|values#static(){}[0]
+}
+
+abstract interface com.happycodelucky.reachable/Reachability : kotlin/AutoCloseable { // com.happycodelucky.reachable/Reachability|null[0]
+    abstract val dataMetered // com.happycodelucky.reachable/Reachability.dataMetered|{}dataMetered[0]
+        abstract fun <get-dataMetered>(): kotlinx.coroutines.flow/StateFlow<kotlin/Boolean> // com.happycodelucky.reachable/Reachability.dataMetered.<get-dataMetered>|<get-dataMetered>(){}[0]
+    abstract val isDataMetered // com.happycodelucky.reachable/Reachability.isDataMetered|{}isDataMetered[0]
+        abstract fun <get-isDataMetered>(): kotlin/Boolean // com.happycodelucky.reachable/Reachability.isDataMetered.<get-isDataMetered>|<get-isDataMetered>(){}[0]
+    abstract val isReachable // com.happycodelucky.reachable/Reachability.isReachable|{}isReachable[0]
+        abstract fun <get-isReachable>(): kotlin/Boolean // com.happycodelucky.reachable/Reachability.isReachable.<get-isReachable>|<get-isReachable>(){}[0]
+    abstract val reachable // com.happycodelucky.reachable/Reachability.reachable|{}reachable[0]
+        abstract fun <get-reachable>(): kotlinx.coroutines.flow/StateFlow<kotlin/Boolean> // com.happycodelucky.reachable/Reachability.reachable.<get-reachable>|<get-reachable>(){}[0]
+    abstract val status // com.happycodelucky.reachable/Reachability.status|{}status[0]
+        abstract fun <get-status>(): kotlinx.coroutines.flow/StateFlow<com.happycodelucky.reachable/ReachabilityStatus> // com.happycodelucky.reachable/Reachability.status.<get-status>|<get-status>(){}[0]
+
+    abstract fun close() // com.happycodelucky.reachable/Reachability.close|close(){}[0]
+
+    final object Companion { // com.happycodelucky.reachable/Reachability.Companion|null[0]
+        final val shared // com.happycodelucky.reachable/Reachability.Companion.shared|{}shared[0]
+            final fun <get-shared>(): com.happycodelucky.reachable/Reachability // com.happycodelucky.reachable/Reachability.Companion.shared.<get-shared>|<get-shared>(){}[0]
+
+        final fun installForTesting(com.happycodelucky.reachable/Reachability?): com.happycodelucky.reachable/TestingOverrideHandle // com.happycodelucky.reachable/Reachability.Companion.installForTesting|installForTesting(com.happycodelucky.reachable.Reachability?){}[0]
+    }
+}
+
+abstract class com.happycodelucky.reachable.internal/StateFlowReachability : com.happycodelucky.reachable/Reachability { // com.happycodelucky.reachable.internal/StateFlowReachability|null[0]
+    constructor <init>() // com.happycodelucky.reachable.internal/StateFlowReachability.<init>|<init>(){}[0]
+
+    final val dataMetered // com.happycodelucky.reachable.internal/StateFlowReachability.dataMetered|{}dataMetered[0]
+        final fun <get-dataMetered>(): kotlinx.coroutines.flow/StateFlow<kotlin/Boolean> // com.happycodelucky.reachable.internal/StateFlowReachability.dataMetered.<get-dataMetered>|<get-dataMetered>(){}[0]
+    final val isClosed // com.happycodelucky.reachable.internal/StateFlowReachability.isClosed|{}isClosed[0]
+        final fun <get-isClosed>(): kotlin/Boolean // com.happycodelucky.reachable.internal/StateFlowReachability.isClosed.<get-isClosed>|<get-isClosed>(){}[0]
+    final val isDataMetered // com.happycodelucky.reachable.internal/StateFlowReachability.isDataMetered|{}isDataMetered[0]
+        final fun <get-isDataMetered>(): kotlin/Boolean // com.happycodelucky.reachable.internal/StateFlowReachability.isDataMetered.<get-isDataMetered>|<get-isDataMetered>(){}[0]
+    final val isReachable // com.happycodelucky.reachable.internal/StateFlowReachability.isReachable|{}isReachable[0]
+        final fun <get-isReachable>(): kotlin/Boolean // com.happycodelucky.reachable.internal/StateFlowReachability.isReachable.<get-isReachable>|<get-isReachable>(){}[0]
+    final val reachable // com.happycodelucky.reachable.internal/StateFlowReachability.reachable|{}reachable[0]
+        final fun <get-reachable>(): kotlinx.coroutines.flow/StateFlow<kotlin/Boolean> // com.happycodelucky.reachable.internal/StateFlowReachability.reachable.<get-reachable>|<get-reachable>(){}[0]
+    final val scope // com.happycodelucky.reachable.internal/StateFlowReachability.scope|{}scope[0]
+        final fun <get-scope>(): kotlinx.coroutines/CoroutineScope // com.happycodelucky.reachable.internal/StateFlowReachability.scope.<get-scope>|<get-scope>(){}[0]
+    final val status // com.happycodelucky.reachable.internal/StateFlowReachability.status|{}status[0]
+        final fun <get-status>(): kotlinx.coroutines.flow/StateFlow<com.happycodelucky.reachable/ReachabilityStatus> // com.happycodelucky.reachable.internal/StateFlowReachability.status.<get-status>|<get-status>(){}[0]
+
+    abstract fun onClose() // com.happycodelucky.reachable.internal/StateFlowReachability.onClose|onClose(){}[0]
+    final fun close() // com.happycodelucky.reachable.internal/StateFlowReachability.close|close(){}[0]
+    final fun publish(com.happycodelucky.reachable/ReachabilityStatus) // com.happycodelucky.reachable.internal/StateFlowReachability.publish|publish(com.happycodelucky.reachable.ReachabilityStatus){}[0]
+    open fun onCloseInvoked() // com.happycodelucky.reachable.internal/StateFlowReachability.onCloseInvoked|onCloseInvoked(){}[0]
+}
+
+final class com.happycodelucky.reachable/ReachabilityStatus { // com.happycodelucky.reachable/ReachabilityStatus|null[0]
+    constructor <init>(kotlin/Boolean, com.happycodelucky.reachable/Transport, kotlin/Boolean) // com.happycodelucky.reachable/ReachabilityStatus.<init>|<init>(kotlin.Boolean;com.happycodelucky.reachable.Transport;kotlin.Boolean){}[0]
+
+    final val isDataMetered // com.happycodelucky.reachable/ReachabilityStatus.isDataMetered|{}isDataMetered[0]
+        final fun <get-isDataMetered>(): kotlin/Boolean // com.happycodelucky.reachable/ReachabilityStatus.isDataMetered.<get-isDataMetered>|<get-isDataMetered>(){}[0]
+    final val isReachable // com.happycodelucky.reachable/ReachabilityStatus.isReachable|{}isReachable[0]
+        final fun <get-isReachable>(): kotlin/Boolean // com.happycodelucky.reachable/ReachabilityStatus.isReachable.<get-isReachable>|<get-isReachable>(){}[0]
+    final val transport // com.happycodelucky.reachable/ReachabilityStatus.transport|{}transport[0]
+        final fun <get-transport>(): com.happycodelucky.reachable/Transport // com.happycodelucky.reachable/ReachabilityStatus.transport.<get-transport>|<get-transport>(){}[0]
+
+    final fun component1(): kotlin/Boolean // com.happycodelucky.reachable/ReachabilityStatus.component1|component1(){}[0]
+    final fun component2(): com.happycodelucky.reachable/Transport // com.happycodelucky.reachable/ReachabilityStatus.component2|component2(){}[0]
+    final fun component3(): kotlin/Boolean // com.happycodelucky.reachable/ReachabilityStatus.component3|component3(){}[0]
+    final fun copy(kotlin/Boolean = ..., com.happycodelucky.reachable/Transport = ..., kotlin/Boolean = ...): com.happycodelucky.reachable/ReachabilityStatus // com.happycodelucky.reachable/ReachabilityStatus.copy|copy(kotlin.Boolean;com.happycodelucky.reachable.Transport;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.happycodelucky.reachable/ReachabilityStatus.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.happycodelucky.reachable/ReachabilityStatus.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.happycodelucky.reachable/ReachabilityStatus.toString|toString(){}[0]
+
+    final object Companion { // com.happycodelucky.reachable/ReachabilityStatus.Companion|null[0]
+        final val Unknown // com.happycodelucky.reachable/ReachabilityStatus.Companion.Unknown|{}Unknown[0]
+            final fun <get-Unknown>(): com.happycodelucky.reachable/ReachabilityStatus // com.happycodelucky.reachable/ReachabilityStatus.Companion.Unknown.<get-Unknown>|<get-Unknown>(){}[0]
+    }
+}
+
+final class com.happycodelucky.reachable/TestingOverrideHandle { // com.happycodelucky.reachable/TestingOverrideHandle|null[0]
+    final fun uninstall() // com.happycodelucky.reachable/TestingOverrideHandle.uninstall|uninstall(){}[0]
+}
+
+final fun com.happycodelucky.reachable/Reachability(): com.happycodelucky.reachable/Reachability // com.happycodelucky.reachable/Reachability|Reachability(){}[0]

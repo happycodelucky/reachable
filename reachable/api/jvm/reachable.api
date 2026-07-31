@@ -1,0 +1,73 @@
+public abstract interface class com/happycodelucky/reachable/Reachability : java/lang/AutoCloseable {
+	public static final field Companion Lcom/happycodelucky/reachable/Reachability$Companion;
+	public abstract fun close ()V
+	public abstract fun getDataMetered ()Lkotlinx/coroutines/flow/StateFlow;
+	public abstract fun getReachable ()Lkotlinx/coroutines/flow/StateFlow;
+	public abstract fun getStatus ()Lkotlinx/coroutines/flow/StateFlow;
+	public abstract fun isDataMetered ()Z
+	public abstract fun isReachable ()Z
+}
+
+public final class com/happycodelucky/reachable/Reachability$Companion {
+	public final fun getShared ()Lcom/happycodelucky/reachable/Reachability;
+	public final fun installForTesting (Lcom/happycodelucky/reachable/Reachability;)Lcom/happycodelucky/reachable/TestingOverrideHandle;
+}
+
+public final class com/happycodelucky/reachable/ReachabilityStatus {
+	public static final field Companion Lcom/happycodelucky/reachable/ReachabilityStatus$Companion;
+	public fun <init> (ZLcom/happycodelucky/reachable/Transport;Z)V
+	public final fun component1 ()Z
+	public final fun component2 ()Lcom/happycodelucky/reachable/Transport;
+	public final fun component3 ()Z
+	public final fun copy (ZLcom/happycodelucky/reachable/Transport;Z)Lcom/happycodelucky/reachable/ReachabilityStatus;
+	public static synthetic fun copy$default (Lcom/happycodelucky/reachable/ReachabilityStatus;ZLcom/happycodelucky/reachable/Transport;ZILjava/lang/Object;)Lcom/happycodelucky/reachable/ReachabilityStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTransport ()Lcom/happycodelucky/reachable/Transport;
+	public fun hashCode ()I
+	public final fun isDataMetered ()Z
+	public final fun isReachable ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/happycodelucky/reachable/ReachabilityStatus$Companion {
+	public final fun getUnknown ()Lcom/happycodelucky/reachable/ReachabilityStatus;
+}
+
+public final class com/happycodelucky/reachable/Reachability_jvmKt {
+	public static final fun Reachability-LRDsOJo (J)Lcom/happycodelucky/reachable/Reachability;
+	public static synthetic fun Reachability-LRDsOJo$default (JILjava/lang/Object;)Lcom/happycodelucky/reachable/Reachability;
+}
+
+public abstract interface annotation class com/happycodelucky/reachable/TestingOnly : java/lang/annotation/Annotation {
+}
+
+public final class com/happycodelucky/reachable/TestingOverrideHandle {
+	public final fun uninstall ()V
+}
+
+public final class com/happycodelucky/reachable/Transport : java/lang/Enum {
+	public static final field Cellular Lcom/happycodelucky/reachable/Transport;
+	public static final field Ethernet Lcom/happycodelucky/reachable/Transport;
+	public static final field None Lcom/happycodelucky/reachable/Transport;
+	public static final field Other Lcom/happycodelucky/reachable/Transport;
+	public static final field Wifi Lcom/happycodelucky/reachable/Transport;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/happycodelucky/reachable/Transport;
+	public static fun values ()[Lcom/happycodelucky/reachable/Transport;
+}
+
+public abstract class com/happycodelucky/reachable/internal/StateFlowReachability : com/happycodelucky/reachable/Reachability {
+	protected fun <init> ()V
+	public final fun close ()V
+	public final fun getDataMetered ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getReachable ()Lkotlinx/coroutines/flow/StateFlow;
+	protected final fun getScope ()Lkotlinx/coroutines/CoroutineScope;
+	public final fun getStatus ()Lkotlinx/coroutines/flow/StateFlow;
+	protected final fun isClosed ()Z
+	public final fun isDataMetered ()Z
+	public final fun isReachable ()Z
+	protected abstract fun onClose ()V
+	protected fun onCloseInvoked ()V
+	protected final fun publish (Lcom/happycodelucky/reachable/ReachabilityStatus;)V
+}
+
