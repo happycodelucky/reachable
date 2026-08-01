@@ -336,6 +336,12 @@ Two channels, no overlap:
 - Configuration cache + build cache on. Don't disable.
 - Per-PR CI: build commonMain + every Tier 1 target. Run JVM and Android unit tests. iOS tests run nightly.
 
+**Public-API stability.** The committed dumps under `<module>/api/` are the reference for the public surface, across every target. `mise run check` (and CI) runs `checkKotlinAbi` and fails on any unintended change — so a breaking change to a published library is always deliberate. After an *intentional* public-API change, run `mise run api:dump` and commit the `api/` diff alongside the code; review it like any other change.
+
+This is the guard that catches what tests cannot. A test exercises what it calls — it says nothing about a public declaration that was removed, or one changed in a way that is source-compatible but *binary*-incompatible: adding a default parameter value, widening a return type, making a `val` a `var`, adding a parameter to a `data class` constructor (which rewrites `copy` and every `componentN`). Those compile clean, keep the suite green, and reach consumers as a runtime `NoSuchMethodError`. Swift/SPM consumers fare worse — SKIE derives their API from this klib ABI, and a consumer pinned to a tag gets no deprecation and no migration path.
+
+Note that the JVM and Apple surfaces genuinely differ (the JVM has a `Duration`-taking `Reachability(...)` factory the klib does not), which is why validation covers every target from one dump rather than just the host's.
+
 ---
 
 ## 11. Testing
@@ -356,11 +362,12 @@ When starting any task:
 3. Need platform-specific behavior? Walk Section 5 in order. Don't skip to `expect`/`actual`.
 4. Considering a hand-written replacement? Section 6 process. Default answer is "use the library."
 5. Adding a public API consumed from Swift? Apply Section 8 rules at design time, not after.
-6. Done means: `./gradlew check` passes and `./gradlew :shared:linkDebugFrameworkIosArm64` builds clean.
-7. Opting into experimental APIs? One-line comment explaining what's experimental and the rollback path.
-8. Wasm gap? `// TODO(wasm)` and ship Tier 1.
-9. Stuck? Grep `.claude/lessons/LESSONS.md`.
-10. Learned something? Add to `.claude/lessons/LESSONS.md` immediately.
+6. Changed the public API on purpose? `mise run api:dump` and commit the `api/` diff alongside the code (Section 10) — otherwise `check` fails on the surface change.
+7. Done means: `mise run check` passes and `./gradlew :reachable:linkDebugFrameworkIosArm64` builds clean.
+8. Opting into experimental APIs? One-line comment explaining what's experimental and the rollback path.
+9. Wasm gap? `// TODO(wasm)` and ship Tier 1.
+10. Stuck? Grep `.claude/lessons/LESSONS.md`.
+11. Learned something? Add to `.claude/lessons/LESSONS.md` immediately.
 
 ---
 
